@@ -1,0 +1,67 @@
+[package]
+authors = ["Dario Nieuwenhuis <dirbaio@dirbaio.net>"]
+edition = "2021"
+name = "rnfc-example-fm175xx"
+version = "0.1.0"
+
+[features]
+default = ["defmt"]
+
+[dependencies]
+rnfc = { path = "../../rnfc", features=["defmt"]}
+rnfc-traits = { path = "../../rnfc-traits", features=["defmt"]}
+rnfc-fm175xx = { path = "../../rnfc-fm175xx", features=["defmt"]}
+embassy = { version = "0.1.0", features = ["defmt", "nightly", "unstable-traits"] }
+embassy-nrf = { version = "0.1.0", features = ["defmt", "nightly", "unstable-traits", "unstable-pac", "nrf52832", "time-driver-rtc1", "gpiote"] }
+
+defmt = { version = "0.3", optional = true }
+log = { version = "0.4.14", optional = true }
+defmt-rtt = "0.3"
+
+cortex-m = "0.7.3"
+cortex-m-rt = "0.7.0"
+panic-probe = { version = "0.3", features = ["print-defmt"] }
+futures = { version = "0.3.17", default-features = false, features = ["async-await"] }
+rand = { version = "0.8.4", default-features = false }
+embedded-storage = "0.3.0"
+embedded-hal = "0.2"
+
+
+[patch.crates-io]
+defmt = { git = "https://github.com/knurling-rs/defmt/" }
+#embassy = { git = "https://github.com/embassy-rs/embassy" }
+#embassy-nrf = { git = "https://github.com/embassy-rs/embassy" }
+#embassy-macros = { git = "https://github.com/embassy-rs/embassy" }
+embassy = { path = "/home/dirbaio/embassy/embassy/embassy" }
+embassy-nrf = { path = "/home/dirbaio/embassy/embassy/embassy-nrf" }
+embassy-macros = { path = "/home/dirbaio/embassy/embassy/embassy-macros" }
+
+[profile.dev]
+debug = 2
+debug-assertions = true
+opt-level = 's'
+overflow-checks = true
+
+[profile.release]
+codegen-units = 1
+debug = 2
+debug-assertions = false
+incremental = false
+lto = 'fat'
+opt-level = 'z'
+overflow-checks = false
+
+# do not optimize proc-macro crates = faster builds from scratch
+[profile.dev.build-override]
+codegen-units = 8
+debug = false
+debug-assertions = false
+opt-level = 0
+overflow-checks = false
+
+[profile.release.build-override]
+codegen-units = 8
+debug = false
+debug-assertions = false
+opt-level = 0
+overflow-checks = false

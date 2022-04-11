@@ -1,0 +1,1491 @@
+---
+block/REGS:
+  items:
+    - name: PAGE0
+      description: Page register in page 0
+      byte_offset: 0
+      bit_size: 8
+    - name: COMMAND
+      description: "Contains Command bits, PowerDown bit and bit to switch receiver off."
+      byte_offset: 1
+      bit_size: 8
+      fieldset: COMMAND
+    - name: COMMIEN
+      description: Contains Communication interrupt enable bits andbit for Interrupt inversion.
+      byte_offset: 2
+      bit_size: 8
+      fieldset: COMMIEN
+    - name: DIVIEN
+      description: "Contains RfOn, RfOff, CRC and Mode Interrupt enable and bit to switch Interrupt pin to PushPull mode."
+      byte_offset: 3
+      bit_size: 8
+      fieldset: DIVIEN
+    - name: COMMIRQ
+      description: Contains Communication interrupt request bits.
+      byte_offset: 4
+      bit_size: 8
+      fieldset: COMMIRQ
+    - name: DIVIRQ
+      description: "Contains RfOn, RfOff, CRC and Mode Interrupt request."
+      byte_offset: 5
+      bit_size: 8
+      fieldset: DIVIRQ
+    - name: ERROR
+      description: "Contains Protocol, Parity, CRC, Collision, Buffer overflow, Temperature and RF error flags."
+      byte_offset: 6
+      bit_size: 8
+      fieldset: ERROR
+    - name: STATUS1
+      description: "Contains status information about Lo- and HiAlert, RF-field on, Timer, Interrupt request and CRC status."
+      byte_offset: 7
+      bit_size: 8
+      fieldset: STATUS1
+    - name: STATUS2
+      description: "Contains information about internal states (Modemstate),Mifare states and possibility to switch Temperature sensor off."
+      byte_offset: 8
+      bit_size: 8
+      fieldset: STATUS2
+    - name: FIFODATA
+      description: "Gives access to FIFO. Writing to register increments theFIFO level (register 0x0A), reading decrements it."
+      byte_offset: 9
+      bit_size: 8
+    - name: FIFOLEVEL
+      description: Contains the actual level of the FIFO.
+      byte_offset: 10
+      bit_size: 8
+      fieldset: FIFOLEVEL
+    - name: WATERLEVEL
+      description: Contains the Waterlevel value for the FIFO
+      byte_offset: 11
+      bit_size: 8
+      fieldset: WATERLEVEL
+    - name: CONTROL
+      description: "Contains information about last received bits, Initiator mode bit, bit to copy NFCID to FIFO and to Start and stopthe Timer unit."
+      byte_offset: 12
+      bit_size: 8
+      fieldset: CONTROL
+    - name: BITFRAMING
+      description: "Contains information of last bits to send, to align received bits in FIFO and activate sending in Transceive"
+      byte_offset: 13
+      bit_size: 8
+      fieldset: BITFRAMING
+    - name: COLL
+      description: Contains all necessary bits for Collission handling
+      byte_offset: 14
+      bit_size: 8
+      fieldset: COLL
+    - name: RFU0F
+      description: Currently not used.
+      byte_offset: 15
+      bit_size: 8
+    - name: PAGE1
+      description: Page register in page 1
+      byte_offset: 16
+      bit_size: 8
+    - name: MODE
+      description: "Contains bits for auto wait on Rf, to detect SYNC byte in NFC mode and MSB first for CRC calculation"
+      byte_offset: 17
+      bit_size: 8
+      fieldset: MODE
+    - name: TXMODE
+      description: "Contains Transmit Framing, Speed, CRC enable, bit for inverse mode and TXMix bit."
+      byte_offset: 18
+      bit_size: 8
+      fieldset: TXMODE
+    - name: RXMODE
+      description: "Contains Transmit Framing, Speed, CRC enable, bit for multiple receive and to filter errors."
+      byte_offset: 19
+      bit_size: 8
+      fieldset: RXMODE
+    - name: TXCONTROL
+      description: Contains bits to activate and configure Tx1 and Tx2 and bit to activate 100% modulation.
+      byte_offset: 20
+      bit_size: 8
+      fieldset: TXCONTROL
+    - name: TXAUTO
+      description: Contains bits to automatically switch on/off the Rf and to do the collission avoidance and the initial rf-on.
+      byte_offset: 21
+      bit_size: 8
+      fieldset: TXAUTO
+    - name: TXSEL
+      description: "Contains SigoutSel, DriverSel and LoadModSel bits."
+      byte_offset: 22
+      bit_size: 8
+      fieldset: TXSEL
+    - name: RXSEL
+      description: Contains UartSel and RxWait bits.
+      byte_offset: 23
+      bit_size: 8
+      fieldset: RXSEL
+    - name: RXTRESHOLD
+      description: Contains MinLevel and CollLevel for detection.
+      byte_offset: 24
+      bit_size: 8
+      fieldset: RXTRESHOLD
+    - name: DEMOD
+      description: "Contains bits for time constants, hysteresis and IQ demodulator settings."
+      byte_offset: 25
+      bit_size: 8
+      fieldset: DEMOD
+    - name: FELICANFC
+      description: Contains bits for minimum FeliCa length received and for FeliCa syncronisation length.
+      byte_offset: 26
+      bit_size: 8
+      fieldset: FELICANFC
+    - name: FELICANFC2
+      description: Contains bits for maximum FeliCa length received.
+      byte_offset: 27
+      bit_size: 8
+      fieldset: FELICANFC2
+    - name: MIFARE
+      description: "Contains Miller settings, TxWait settings and MIFARE halted mode bit."
+      byte_offset: 28
+      bit_size: 8
+      fieldset: MIFARE
+    - name: MANUALRCV
+      description: Currently not used.
+      byte_offset: 29
+      bit_size: 8
+      fieldset: MANUALRCV
+    - name: RFU1E
+      description: Currently not used.
+      byte_offset: 30
+      bit_size: 8
+    - name: SERIALSPEED
+      description: Contains speed settings for serila interface.
+      byte_offset: 31
+      bit_size: 8
+    - name: PAGE2
+      description: Page register in page 2
+      byte_offset: 32
+      bit_size: 8
+    - name: CRCRESULT1
+      description: Contains MSByte of CRC Result.
+      byte_offset: 33
+      bit_size: 8
+    - name: CRCRESULT2
+      description: Contains LSByte of CRC Result.
+      byte_offset: 34
+      bit_size: 8
+    - name: GSNLOADMOD
+      description: Contains the conductance and the modulation settings for the N-MOS transistor only for load modulation (See difference to JREG_GSN!).
+      byte_offset: 35
+      bit_size: 8
+    - name: MODWIDTH
+      description: Contains modulation width setting.
+      byte_offset: 36
+      bit_size: 8
+    - name: TXBITPHASE
+      description: Contains TxBitphase settings and receive clock change.
+      byte_offset: 37
+      bit_size: 8
+      fieldset: TXBITPHASE
+    - name: RFCFG
+      description: "Contains sensitivity of Rf Level detector, the receiver gain factor and the RfLevelAmp."
+      byte_offset: 38
+      bit_size: 8
+      fieldset: RFCFG
+    - name: GSN
+      description: Contains the conductance and the modulation settings for the N-MOS transistor during active modulation (no load modulation setting!).
+      byte_offset: 39
+      bit_size: 8
+      fieldset: GSN
+    - name: CWGSP
+      description: Contains the conductance for the P-Mos transistor.
+      byte_offset: 40
+      bit_size: 8
+      fieldset: CWGSP
+    - name: MODGSP
+      description: Contains the modulation index for the PMos transistor.
+      byte_offset: 41
+      bit_size: 8
+      fieldset: MODGSP
+    - name: TMODE
+      description: Contains all settings for the timer and the highest 4 bits of the prescaler.
+      byte_offset: 42
+      bit_size: 8
+      fieldset: TMODE
+    - name: TPRESCALER
+      description: Contais the lowest byte of the prescaler.
+      byte_offset: 43
+      bit_size: 8
+    - name: TRELOADHI
+      description: Contains the high byte of the reload value.
+      byte_offset: 44
+      bit_size: 8
+    - name: TRELOADLO
+      description: Contains the low byte of the reload value.
+      byte_offset: 45
+      bit_size: 8
+    - name: TCOUNTERVALHI
+      description: Contains the high byte of the counter value.
+      byte_offset: 46
+      bit_size: 8
+    - name: TCOUNTERVALLO
+      description: Contains the low byte of the counter value.
+      byte_offset: 47
+      bit_size: 8
+    - name: PAGE3
+      description: Page register in page 3
+      byte_offset: 48
+      bit_size: 8
+    - name: TESTSEL1
+      description: Test register
+      byte_offset: 49
+      bit_size: 8
+    - name: TESTSEL2
+      description: Test register
+      byte_offset: 50
+      bit_size: 8
+    - name: TESTPINEN
+      description: Test register
+      byte_offset: 51
+      bit_size: 8
+    - name: TESTPINVALUE
+      description: Test register
+      byte_offset: 52
+      bit_size: 8
+    - name: TESTBUS
+      description: Test register
+      byte_offset: 53
+      bit_size: 8
+    - name: AUTOTEST
+      description: Test register
+      byte_offset: 54
+      bit_size: 8
+      fieldset: AUTOTEST
+    - name: VERSION
+      description: Contains the product number and the version .
+      byte_offset: 55
+      bit_size: 8
+    - name: ANALOGTEST
+      description: Test register
+      byte_offset: 56
+      bit_size: 8
+    - name: TESTDAC1
+      description: Test register
+      byte_offset: 57
+      bit_size: 8
+    - name: TESTDAC2
+      description: Test register
+      byte_offset: 58
+      bit_size: 8
+    - name: TESTADC
+      description: Test register
+      byte_offset: 59
+      bit_size: 8
+    - name: ANALOGUETEST1
+      description: Test register
+      byte_offset: 60
+      bit_size: 8
+    - name: ANALOGUETEST0
+      description: Test register
+      byte_offset: 61
+      bit_size: 8
+    - name: ANALOGUETPD_A
+      description: Test register
+      byte_offset: 62
+      bit_size: 8
+    - name: ANALOGUETPD_B
+      description: Test register
+      byte_offset: 63
+      bit_size: 8
+    - name: LPCD_CTRL1
+      description: Lpcd Ctrl register1
+      byte_offset: 65
+      bit_size: 8
+      fieldset: LPCD_CTRL1
+    - name: LPCD_CTRL2
+      description: Lpcd Ctrl register2
+      byte_offset: 66
+      bit_size: 8
+      fieldset: LPCD_CTRL2
+    - name: LPCD_CTRL3
+      description: Lpcd Ctrl register3
+      byte_offset: 67
+      bit_size: 8
+      fieldset: LPCD_CTRL3
+    - name: LPCD_CTRL4
+      description: Lpcd Ctrl register4
+      byte_offset: 68
+      bit_size: 8
+      fieldset: LPCD_CTRL4
+    - name: LPCD_BIAS_CURRENT
+      description: Lpcd bias current register
+      byte_offset: 69
+      bit_size: 8
+      fieldset: LPCD_BIAS_CURRENT
+    - name: LPCD_ADC_REFERECE
+      description: Lpcd adc reference register
+      byte_offset: 70
+      bit_size: 8
+    - name: LPCD_T1CFG
+      description: "T1Cfg[3:0] register"
+      byte_offset: 71
+      bit_size: 8
+      fieldset: LPCD_T1CFG
+    - name: LPCD_T2CFG
+      description: "T2Cfg[4:0] register"
+      byte_offset: 72
+      bit_size: 8
+      fieldset: LPCD_T2CFG
+    - name: LPCD_T3CFG
+      description: "T2Cfg[4:0] register"
+      byte_offset: 73
+      bit_size: 8
+      fieldset: LPCD_T3CFG
+    - name: LPCD_VMID_BD_CFG
+      description: "VmidBdCfg[4:0] register"
+      byte_offset: 74
+      bit_size: 8
+      fieldset: LPCD_VMID_BD_CFG
+    - name: LPCD_AUTO_WUP_CFG
+      description: Auto_Wup_Cfg register
+      byte_offset: 75
+      bit_size: 8
+      fieldset: LPCD_AUTO_WUP_CFG
+    - name: LPCD_ADC_RESULT_L
+      description: "ADCResult[5:0] Register"
+      byte_offset: 76
+      bit_size: 8
+    - name: LPCD_ADC_RESULT_H
+      description: "ADCResult[7:6] Register"
+      byte_offset: 77
+      bit_size: 8
+    - name: LPCD_THRESHOLD_MIN_L
+      description: "LpcdThreshold_L[5:0] Register"
+      byte_offset: 78
+      bit_size: 8
+    - name: LPCD_THRESHOLD_MIN_H
+      description: "LpcdThreshold_L[7:6] Register"
+      byte_offset: 79
+      bit_size: 8
+    - name: LPCD_THRESHOLD_MAX_L
+      description: "LpcdThreshold_H[5:0] Register"
+      byte_offset: 80
+      bit_size: 8
+    - name: LPCD_THRESHOLD_MAX_H
+      description: "LpcdThreshold_H[7:6] Register"
+      byte_offset: 81
+      bit_size: 8
+    - name: LPCD_IRQ
+      description: LpcdStatus Register
+      byte_offset: 82
+      bit_size: 8
+      fieldset: LPCD_IRQ
+    - name: LPCD_RFT1
+      description: Aux1 select Register
+      byte_offset: 83
+      bit_size: 8
+      fieldset: LPCD_RFT1
+    - name: LPCD_RFT2
+      description: Aux2 select Register
+      byte_offset: 84
+      bit_size: 8
+      fieldset: LPCD_RFT2
+    - name: LPCD_RFT3
+      description: LPCD test1 Register
+      byte_offset: 85
+      bit_size: 8
+      fieldset: LPCD_RFT3
+    - name: LPCD_RFT4
+      description: LPCD test2 Register
+      byte_offset: 86
+      bit_size: 8
+      fieldset: LPCD_RFT4
+    - name: LP_CLK_CNT1
+      description: "lp_clk_cnt[5:0] Register"
+      byte_offset: 87
+      bit_size: 8
+    - name: LP_CLK_CNT2
+      description: "lp_clk_cnt[7:6] Register"
+      byte_offset: 88
+      bit_size: 8
+    - name: VERSIONREG2
+      description: "VersionReg2[1:0] Register"
+      byte_offset: 89
+      bit_size: 8
+    - name: IRQ_BAK
+      description: Irq bak Register
+      byte_offset: 90
+      bit_size: 8
+      fieldset: IRQ_BAK
+    - name: LPCD_RFT5
+      description: LPCD TEST3 Register
+      byte_offset: 91
+      bit_size: 8
+      fieldset: LPCD_RFT5
+    - name: LPCD_MISC
+      description: LPCD Misc Register
+      byte_offset: 92
+      bit_size: 8
+      fieldset: LPCD_MISC
+    - name: LVD_CTRL
+      description: Low Votage Detect register
+      byte_offset: 93
+      bit_size: 8
+fieldset/AUTOTEST:
+  bit_size: 8
+  fields:
+    - name: AMPRCV
+      description: ""
+      bit_offset: 6
+      bit_size: 1
+fieldset/BITFRAMING:
+  bit_size: 8
+  fields:
+    - name: TXLASTBITS
+      description: Used for bitwise frame format transmission. Defines the number of bits that need to be sent in the last byte. 0 means that all bits of the last byte are to be sent.
+      bit_offset: 0
+      bit_size: 3
+    - name: RXALIGN
+      description: Used for receiving in bit frame format. RxAlign defines the data that needs to be stored in the FIFO to receive the first bit of data location. Subsequent received data bits are stored in the next position. This bit is only used for bitwise anticollision at 106 kbit/s. Set to 0 in other modes.
+      bit_offset: 4
+      bit_size: 3
+    - name: STARTSEND
+      description: Starts transmission in transceive command if set to 1.
+      bit_offset: 7
+      bit_size: 1
+fieldset/COLL:
+  bit_size: 8
+  fields:
+    - name: COLLPOS
+      description: Set to 1 if no collision is detected or the collision position is outside the range of CollPos. This bit is only Interpreted in ISO/IEC 14443A reader mode.
+      bit_offset: 0
+      bit_size: 5
+    - name: COLLPOSNOTVALID
+      description: Set to 1 if no collision is detected or the collision position is outside the range of CollPos. This bit is only Interpreted in ISO/IEC 14443A reader mode.
+      bit_offset: 5
+      bit_size: 1
+    - name: VALUESAFTERCOLL
+      description: Activates mode to keep data after collision.
+      bit_offset: 7
+      bit_size: 1
+fieldset/COMMAND:
+  bit_size: 8
+  fields:
+    - name: COMMAND
+      description: Run a command
+      bit_offset: 0
+      bit_size: 4
+      enum: COMMAND_VAL
+    - name: POWERDOWN
+      description: Switches FM175XX to Power Down mode.
+      bit_offset: 4
+      bit_size: 1
+    - name: RCVOFF
+      description: Switches the receiver on/off.
+      bit_offset: 5
+      bit_size: 1
+fieldset/COMMIEN:
+  bit_size: 8
+  fields:
+    - name: TIMERI
+      description: Timer Interrupt Enable/Request.
+      bit_offset: 0
+      bit_size: 1
+    - name: ERRI
+      description: Error Interrupt Enable/Request.
+      bit_offset: 1
+      bit_size: 1
+    - name: LOALERTI
+      description: LoAlert Interrupt Enable/Request.
+      bit_offset: 2
+      bit_size: 1
+    - name: HIALERTI
+      description: HiAlert Interrupt Enable/Request.
+      bit_offset: 3
+      bit_size: 1
+    - name: IDLEI
+      description: Idle Interrupt Enable/Request.
+      bit_offset: 4
+      bit_size: 1
+    - name: RXI
+      description: Receive Interrupt Enable/Request.
+      bit_offset: 5
+      bit_size: 1
+    - name: TXI
+      description: Transmit Interrupt Enable/Request.
+      bit_offset: 6
+      bit_size: 1
+    - name: IRQINV
+      description: Inverts the output of IRQ Pin.
+      bit_offset: 7
+      bit_size: 1
+fieldset/COMMIRQ:
+  bit_size: 8
+  fields:
+    - name: TIMERI
+      description: Timer Interrupt Enable/Request.
+      bit_offset: 0
+      bit_size: 1
+    - name: ERRI
+      description: Error Interrupt Enable/Request.
+      bit_offset: 1
+      bit_size: 1
+    - name: LOALERTI
+      description: LoAlert Interrupt Enable/Request.
+      bit_offset: 2
+      bit_size: 1
+    - name: HIALERTI
+      description: HiAlert Interrupt Enable/Request.
+      bit_offset: 3
+      bit_size: 1
+    - name: IDLEI
+      description: Idle Interrupt Enable/Request.
+      bit_offset: 4
+      bit_size: 1
+    - name: RXI
+      description: Receive Interrupt Enable/Request.
+      bit_offset: 5
+      bit_size: 1
+    - name: TXI
+      description: Transmit Interrupt Enable/Request.
+      bit_offset: 6
+      bit_size: 1
+    - name: SET
+      description: Bit position to set/clear dedicated IRQ bits.
+      bit_offset: 7
+      bit_size: 1
+fieldset/CONTROL:
+  bit_size: 8
+  fields:
+    - name: RXBITS
+      description: ""
+      bit_offset: 0
+      bit_size: 3
+    - name: INITIATOR
+      description: Sets Initiator mode.
+      bit_offset: 4
+      bit_size: 1
+    - name: WRNFCIDTOFIFO
+      description: Copies internal stored NFCID3 to actual position of FIFO.
+      bit_offset: 5
+      bit_size: 1
+    - name: TSTARTNOW
+      description: Starts timer if set to 1.
+      bit_offset: 6
+      bit_size: 1
+    - name: TSTOPNOW
+      description: Stops timer if set to 1.
+      bit_offset: 7
+      bit_size: 1
+fieldset/CWGSP:
+  bit_size: 8
+  fields:
+    - name: CWGSP
+      description: ""
+      bit_offset: 0
+      bit_size: 6
+fieldset/DEMOD:
+  bit_size: 8
+  fields:
+    - name: TAUSYNC
+      description: ""
+      bit_offset: 0
+      bit_size: 2
+    - name: TAURCV
+      description: ""
+      bit_offset: 2
+      bit_size: 2
+    - name: FIXIQ
+      description: "If set to 1 and the lower bit of AddIQ is set to 0, the receiving is fixed to I channel. If set to 1 and the lower bit of AddIQ is set to 1, the receiving is fixed to Q channel."
+      bit_offset: 5
+      bit_size: 1
+    - name: ADDIQ
+      description: ""
+      bit_offset: 6
+      bit_size: 2
+fieldset/DIVIEN:
+  bit_size: 8
+  fields:
+    - name: RFOFFI
+      description: RF Off Interrupt Enable/Request.
+      bit_offset: 0
+      bit_size: 1
+    - name: RFONI
+      description: RF On Interrupt Enable/Request.
+      bit_offset: 1
+      bit_size: 1
+    - name: CRCI
+      description: CRC Interrupt Enable/Request.
+      bit_offset: 2
+      bit_size: 1
+    - name: MODEI
+      description: Mode Interrupt Enable/Request.
+      bit_offset: 3
+      bit_size: 1
+    - name: SIGINACT
+      description: SiginAct Interrupt Enable/Request.
+      bit_offset: 4
+      bit_size: 1
+    - name: IRQPUSHPULL
+      description: Sets the IRQ pin to Push Pull mode.
+      bit_offset: 7
+      bit_size: 1
+fieldset/DIVIRQ:
+  bit_size: 8
+  fields:
+    - name: RFOFFI
+      description: RF Off Interrupt Enable/Request.
+      bit_offset: 0
+      bit_size: 1
+    - name: RFONI
+      description: RF On Interrupt Enable/Request.
+      bit_offset: 1
+      bit_size: 1
+    - name: CRCI
+      description: CRC Interrupt Enable/Request.
+      bit_offset: 2
+      bit_size: 1
+    - name: MODEI
+      description: Mode Interrupt Enable/Request.
+      bit_offset: 3
+      bit_size: 1
+    - name: SIGINACT
+      description: SiginAct Interrupt Enable/Request.
+      bit_offset: 4
+      bit_size: 1
+    - name: SET
+      description: Bit position to set/clear dedicated IRQ bits.
+      bit_offset: 7
+      bit_size: 1
+fieldset/ERROR:
+  bit_size: 8
+  fields:
+    - name: PROTERR
+      description: Protocol Error.
+      bit_offset: 0
+      bit_size: 1
+    - name: PARITYERR
+      description: Parity Error.
+      bit_offset: 1
+      bit_size: 1
+    - name: CRCERR
+      description: CRC Error.
+      bit_offset: 2
+      bit_size: 1
+    - name: COLLERR
+      description: Collision Error.
+      bit_offset: 3
+      bit_size: 1
+    - name: BUFFEROVFL
+      description: Buffer Overflow Error.
+      bit_offset: 4
+      bit_size: 1
+    - name: RFERR
+      description: RF Error.
+      bit_offset: 5
+      bit_size: 1
+    - name: TEMPERR
+      description: Temerature Error.
+      bit_offset: 6
+      bit_size: 1
+    - name: WRERR
+      description: Write Access Error.
+      bit_offset: 6
+      bit_size: 1
+fieldset/FELICANFC:
+  bit_size: 8
+  fields:
+    - name: FELICALEN
+      description: ""
+      bit_offset: 0
+      bit_size: 6
+    - name: FELICASYNCLEN
+      description: ""
+      bit_offset: 6
+      bit_size: 2
+fieldset/FELICANFC2:
+  bit_size: 8
+  fields:
+    - name: FELICALEN
+      description: ""
+      bit_offset: 0
+      bit_size: 6
+    - name: FASTTIMESLOT
+      description: "If this bit is set to one, the response time to the polling command is half as normal."
+      bit_offset: 6
+      bit_size: 1
+    - name: FELICASYNCLEN
+      description: ""
+      bit_offset: 6
+      bit_size: 2
+    - name: WAITFORSELECTED
+      description: "If this bit is set to one, only passive communication modes are possible. In any other case the AutoColl Statemachine does not exit."
+      bit_offset: 7
+      bit_size: 1
+fieldset/FIFOLEVEL:
+  bit_size: 8
+  fields:
+    - name: LEVEL
+      description: "FIFO level, in bytes. 0..=64"
+      bit_offset: 0
+      bit_size: 7
+    - name: FLUSHFIFO
+      description: Clears FIFO buffer if set to 1
+      bit_offset: 7
+      bit_size: 1
+fieldset/GSN:
+  bit_size: 8
+  fields:
+    - name: MODGSN
+      description: Conductance of theoutput for periods of modulation
+      bit_offset: 0
+      bit_size: 4
+    - name: CWGSN
+      description: Conductance of theoutput for periods of no modulation
+      bit_offset: 4
+      bit_size: 4
+fieldset/IRQ_BAK:
+  bit_size: 8
+  fields:
+    - name: IRQ_INV_BAK
+      description: Irq Inv backup
+      bit_offset: 0
+      bit_size: 1
+    - name: IRQ_PUSHPULL_BAK
+      description: Irq pushpull backup
+      bit_offset: 1
+      bit_size: 1
+fieldset/LPCD_AUTO_WUP_CFG:
+  bit_size: 8
+  fields:
+    - name: Time
+      description: "To configure automatic wake-up time:"
+      bit_offset: 0
+      bit_size: 3
+      enum: LPCD_AUTO_WUP_TIME
+    - name: EN
+      description: "Set to 1, the chip automatically exits from LPCD mode according to the set AutoWupCfg value, At the same time, the interrupt flag is given."
+      bit_offset: 3
+      bit_size: 1
+fieldset/LPCD_BIAS_CURRENT:
+  bit_size: 8
+  fields:
+    - name: BIAS_CURRENT
+      description: Bias current
+      bit_offset: 0
+      bit_size: 3
+    - name: ADC_REFERECE_H
+      description: ADC reference level bit 6
+      bit_offset: 5
+      bit_size: 1
+fieldset/LPCD_CTRL1:
+  bit_size: 8
+  fields:
+    - name: EN
+      description: enble LPCD
+      bit_offset: 0
+      bit_size: 1
+    - name: RSTN
+      description: lpcd reset
+      bit_offset: 1
+      bit_size: 1
+    - name: CALIBRA_EN
+      description: into lpcd calibra mode
+      bit_offset: 2
+      bit_size: 1
+    - name: SENSE_1
+      description: Compare times 1 or 3
+      bit_offset: 3
+      bit_size: 1
+    - name: IE
+      description: Enable LPCD IE
+      bit_offset: 4
+      bit_size: 1
+    - name: BIT_CTRL_SET
+      description: Lpcd register Bit ctrl set bit
+      bit_offset: 5
+      bit_size: 1
+fieldset/LPCD_CTRL2:
+  bit_size: 8
+  fields:
+    - name: CWP
+      description: "Configure the drive control of the RF field P tube in LPCD mode. From 000 to 111, the driving capacity increases from small to large."
+      bit_offset: 0
+      bit_size: 3
+    - name: CWN
+      description: "Configure the drive control of the RF field N tube in LPCD mode. 0- Small drive, 1- Big drive"
+      bit_offset: 3
+      bit_size: 1
+    - name: TX2EN
+      description: "1 which means that the TX2 output is enabled, and the output is inverse to TX1."
+      bit_offset: 4
+      bit_size: 1
+fieldset/LPCD_CTRL3:
+  bit_size: 8
+  fields:
+    - name: HPDEN
+      description: "Low power mode control. \nSet to 0: When pin NPD=0, and LPCDEn=0 (default value), the chip enters DPD mode.\nSet to 1: When pin NPD=0, and LPCDEn=0 (default value), the chip enters HPD mode.\n[Note: To enable LPCD function, set as: HPDEn=0, LPCDEn=1]\n"
+      bit_offset: 5
+      bit_size: 1
+fieldset/LPCD_CTRL4:
+  bit_size: 8
+  fields:
+    - name: ATTENUATION
+      description: Attenuation factor
+      bit_offset: 0
+      bit_size: 2
+      enum: LPCD_ATTENUATION
+    - name: GAIN
+      description: Amplifier multiplier
+      bit_offset: 2
+      bit_size: 3
+      enum: LPCD_GAIN
+fieldset/LPCD_IRQ:
+  bit_size: 8
+  fields:
+    - name: CARD_IN_IRQ
+      description: irq of card in
+      bit_offset: 0
+      bit_size: 1
+    - name: LPCD23_IRQ
+      description: irq of LPCD 23 end
+      bit_offset: 1
+      bit_size: 1
+    - name: CALIB_IRQ
+      description: irq of calib end
+      bit_offset: 2
+      bit_size: 1
+    - name: LP10K_TESTOK_IRQ
+      description: irq of lp osc 10K ok
+      bit_offset: 3
+      bit_size: 1
+    - name: AUTO_WUP_IRQ
+      description: irq of Auto wake up
+      bit_offset: 4
+      bit_size: 1
+fieldset/LPCD_MISC:
+  bit_size: 8
+  fields:
+    - name: CALIB_VMID_EN
+      description: lPCD test mode
+      bit_offset: 0
+      bit_size: 1
+    - name: AMP_EN_SEL
+      description: LPCD amp en select
+      bit_offset: 2
+      bit_size: 1
+fieldset/LPCD_RFT1:
+  bit_size: 8
+  fields:
+    - name: AUX1_VDEM_LPCD
+      description: vdem of lpcd
+      bit_offset: 0
+      bit_size: 1
+    - name: AUX1_VP_LPCD
+      description: voltage of charecap
+      bit_offset: 1
+      bit_size: 1
+fieldset/LPCD_RFT2:
+  bit_size: 8
+  fields:
+    - name: AUX2_VDEM_LPCD
+      description: vdem of lpcd
+      bit_offset: 0
+      bit_size: 1
+    - name: AUX2_VP_LPCD
+      description: voltage of charecap
+      bit_offset: 1
+      bit_size: 1
+fieldset/LPCD_RFT3:
+  bit_size: 8
+  fields:
+    - name: LP_OSC10K_EN
+      description: enable lp osc10k
+      bit_offset: 0
+      bit_size: 1
+    - name: LP_OSC_CALIBRA_EN
+      description: enable lp osc10k calibra mode
+      bit_offset: 1
+      bit_size: 1
+    - name: LP_CURR_TEST
+      description: enable lp t1 current test
+      bit_offset: 2
+      bit_size: 1
+    - name: TEST2_LPCD_OUT
+      description: "lpcd_test2[3]:LPCD_OUT"
+      bit_offset: 3
+      bit_size: 1
+fieldset/LPCD_RFT4:
+  bit_size: 8
+  fields:
+    - name: T1_OUT_EN
+      description: "D5:T1_OUT"
+      bit_offset: 0
+      bit_size: 1
+    - name: OSCCLK_OUT_EN
+      description: "D4:OSC_CLK_OUT"
+      bit_offset: 1
+      bit_size: 1
+    - name: OSCEN_OUT_EN
+      description: "D3:OSC_EN"
+      bit_offset: 2
+      bit_size: 1
+    - name: LP_CLK_LPCD_OUT_EN
+      description: "D2:LP_CLK or LPCD_OUT"
+      bit_offset: 3
+      bit_size: 1
+    - name: T3_OUT_EN
+      description: "D1:T3_OUT"
+      bit_offset: 4
+      bit_size: 1
+fieldset/LPCD_RFT5:
+  bit_size: 8
+  fields:
+    - name: TESTEN
+      description: lPCD test mode
+      bit_offset: 0
+      bit_size: 1
+    - name: AWUP_TSEL
+      description: Auto wakeup test mode
+      bit_offset: 1
+      bit_size: 1
+    - name: RNG_MODE_SEL
+      description: RNG  mode sel
+      bit_offset: 2
+      bit_size: 1
+    - name: USE_RET
+      description: use retention mode
+      bit_offset: 3
+      bit_size: 1
+fieldset/LPCD_T1CFG:
+  bit_size: 8
+  fields:
+    - name: T1CFG
+      description: T1_time = (T1Cfg+2)*100ms. Valid range 1-0xF
+      bit_offset: 0
+      bit_size: 4
+    - name: T3CLKDIVK
+      description: Frequency division ratio setting of working clock in T3 stage
+      bit_offset: 4
+      bit_size: 2
+      enum: LPCD_T3CLKDIVK
+fieldset/LPCD_T2CFG:
+  bit_size: 8
+  fields:
+    - name: T2CFG
+      description: T2_time = (T2Cfg+2)*100us. Valid range 2-0x1F
+      bit_offset: 0
+      bit_size: 5
+fieldset/LPCD_T3CFG:
+  bit_size: 8
+  fields:
+    - name: T3CFG
+      description: T3_time = (T3Cfg-1)*4.7us. Valid range 2-0x1F
+      bit_offset: 0
+      bit_size: 5
+fieldset/LPCD_VMID_BD_CFG:
+  bit_size: 8
+  fields:
+    - name: VMID_BD_CFG
+      description: "Configure the Vmid establishment time. Configuration Value = T2Cfg Configuration Value - Settling time required for Vmid. [Note: It is recommended to use the setting of the reference code, and it is not recommended for the user to modify it]"
+      bit_offset: 0
+      bit_size: 5
+fieldset/MANUALRCV:
+  bit_size: 8
+  fields:
+    - name: HPCF
+      description: ""
+      bit_offset: 0
+      bit_size: 2
+    - name: MANUALHPCF
+      description: ""
+      bit_offset: 2
+      bit_size: 1
+    - name: LARGEBWPLL
+      description: ""
+      bit_offset: 3
+      bit_size: 1
+    - name: PARITYDISABLE
+      description: Disables the parity generation and sending independent from the mode.
+      bit_offset: 4
+      bit_size: 1
+fieldset/MIFARE:
+  bit_size: 8
+  fields:
+    - name: TXWAIT
+      description: ""
+      bit_offset: 0
+      bit_size: 2
+    - name: MFHALTED
+      description: Configures the internal state machine only to answer to Wakeup commands according to ISO 14443-3.
+      bit_offset: 2
+      bit_size: 1
+    - name: TAUMILLER
+      description: ""
+      bit_offset: 3
+      bit_size: 2
+    - name: SENSMILLER
+      description: ""
+      bit_offset: 5
+      bit_size: 3
+fieldset/MODE:
+  bit_size: 8
+  fields:
+    - name: CRCPRESET
+      description: ""
+      bit_offset: 0
+      bit_size: 2
+    - name: MODEDETOFF
+      description: Deactivates the ModeDetector during AutoAnticoll command. The settings of the register are valid only.
+      bit_offset: 2
+      bit_size: 1
+    - name: POLSIGIN
+      description: "Inverts polarity of SiginActIrq, if bit is set to 1 IRQ occures when Sigin line is 0."
+      bit_offset: 3
+      bit_size: 1
+    - name: RXWAITRF
+      description: "Rx waits until Rf is enabled until receive is startet, else receive is started immideately."
+      bit_offset: 4
+      bit_size: 1
+    - name: TXWAITRF
+      description: "Tx waits until Rf is enabled until transmit is startet, else transmit is started immideately."
+      bit_offset: 5
+      bit_size: 1
+    - name: DETECTSYNC
+      description: Activate automatic sync detection for NFC 106kbps.
+      bit_offset: 6
+      bit_size: 1
+    - name: MSBFIRST
+      description: Sets CRC coprocessor with MSB first.
+      bit_offset: 7
+      bit_size: 1
+fieldset/MODGSP:
+  bit_size: 8
+  fields:
+    - name: MODGSP
+      description: ""
+      bit_offset: 0
+      bit_size: 6
+fieldset/RFCFG:
+  bit_size: 8
+  fields:
+    - name: RFLEVEL
+      description: Sensitivity of the RF level detector
+      bit_offset: 0
+      bit_size: 4
+    - name: RXGAIN
+      description: Receiver gain
+      bit_offset: 4
+      bit_size: 3
+      enum: RXGAIN
+    - name: RFLEVELAMP
+      description: Activates the RF Level detector amplifier.
+      bit_offset: 7
+      bit_size: 1
+fieldset/RXMODE:
+  bit_size: 8
+  fields:
+    - name: FRAMING
+      description: ""
+      bit_offset: 0
+      bit_size: 2
+      enum: FRAMING
+    - name: RXMULTIPLE
+      description: Activates reception mode for multiple responses.
+      bit_offset: 2
+      bit_size: 1
+    - name: RXNOERR
+      description: "If 1, receiver does not receive less than 4 bits."
+      bit_offset: 3
+      bit_size: 1
+    - name: SPEED
+      bit_offset: 4
+      bit_size: 3
+      enum: SPEED
+    - name: CRCEN
+      description: Activates transmit or receive CRC.
+      bit_offset: 7
+      bit_size: 1
+fieldset/RXSEL:
+  bit_size: 8
+  fields:
+    - name: RXWAIT
+      description: ""
+      bit_offset: 0
+      bit_size: 6
+    - name: UARTSEL
+      description: ""
+      bit_offset: 6
+      bit_size: 2
+fieldset/RXTRESHOLD:
+  bit_size: 8
+  fields:
+    - name: COLLEVEL
+      description: ""
+      bit_offset: 0
+      bit_size: 3
+    - name: MINLEVEL
+      description: ""
+      bit_offset: 4
+      bit_size: 4
+fieldset/STATUS1:
+  bit_size: 8
+  fields:
+    - name: LOALERT
+      description: status LoAlert.
+      bit_offset: 0
+      bit_size: 1
+    - name: HIALERT
+      description: status HiAlert.
+      bit_offset: 1
+      bit_size: 1
+    - name: RFON
+      description: status RF is on/off.
+      bit_offset: 2
+      bit_size: 1
+    - name: TRUNNUNG
+      description: status Timer is running.
+      bit_offset: 3
+      bit_size: 1
+    - name: IRQ
+      description: status IRQ is active.
+      bit_offset: 4
+      bit_size: 1
+    - name: CRCREADY
+      description: status CRC Ready.
+      bit_offset: 5
+      bit_size: 1
+    - name: CRCOK
+      description: status CRC OK.
+      bit_offset: 6
+      bit_size: 1
+fieldset/STATUS2:
+  bit_size: 8
+  fields:
+    - name: CRYPTO1ON
+      description: reader status Crypto is on.
+      bit_offset: 3
+      bit_size: 1
+    - name: MFSELECTED
+      description: card status Mifare selected.
+      bit_offset: 4
+      bit_size: 1
+    - name: I2CFORCEHS
+      description: Bit position to forece High speed mode for I2C Interface.
+      bit_offset: 6
+      bit_size: 1
+    - name: TEMPSENSOFF
+      description: Bit position to switch Temperture sensors on/off.
+      bit_offset: 7
+      bit_size: 1
+fieldset/TMODE:
+  bit_size: 8
+  fields:
+    - name: TPRESCALER_HI
+      description: ""
+      bit_offset: 0
+      bit_size: 4
+    - name: TAUTORESTART
+      description: Restarts the timer automatically after finished counting down to 0.
+      bit_offset: 4
+      bit_size: 1
+    - name: TGATED
+      description: ""
+      bit_offset: 5
+      bit_size: 2
+    - name: TAUTO
+      description: Sets the Timer start/stop conditions to Auto mode.
+      bit_offset: 7
+      bit_size: 1
+fieldset/TXAUTO:
+  bit_size: 8
+  fields:
+    - name: TX1RFAUTOEN
+      description: Switches on the driver one automatically according to the other settings.
+      bit_offset: 0
+      bit_size: 1
+    - name: TX2RFAUTOEN
+      description: Switches on the driver two automatically according to the other settings.
+      bit_offset: 1
+      bit_size: 1
+    - name: INITIALRFON
+      description: Activate the initial RF on procedure as defined iun ECMA-340.
+      bit_offset: 2
+      bit_size: 1
+    - name: CAON
+      description: Activates the automatic time jitter generation by switching on the Rf field as defined in ECMA-340.
+      bit_offset: 3
+      bit_size: 1
+    - name: AUTOWAKEUP
+      description: Activates automatic wakeup of the FM175XX if set to 1.
+      bit_offset: 5
+      bit_size: 1
+    - name: FORCE100ASK
+      description: Activates 100%ASK mode independent of driver settings.
+      bit_offset: 6
+      bit_size: 1
+    - name: AUTORFOFF
+      description: Switches the RF automatically off after transmission is finished.
+      bit_offset: 7
+      bit_size: 1
+fieldset/TXBITPHASE:
+  bit_size: 8
+  fields:
+    - name: TXBITPHASE
+      description: ""
+      bit_offset: 0
+      bit_size: 7
+    - name: RCVCLKCHANGE
+      description: If 1 the receive clock may change between Rf and oscilator.
+      bit_offset: 7
+      bit_size: 1
+fieldset/TXCONTROL:
+  bit_size: 8
+  fields:
+    - name: TX1RFEN
+      description: Switches the driver for Tx1 pin on.
+      bit_offset: 0
+      bit_size: 1
+    - name: TX2RFEN
+      description: Switches the driver for Tx2 pin on.
+      bit_offset: 1
+      bit_size: 1
+    - name: CHECKRF
+      description: Does not activate the driver if an external RF is detected. Only valid in combination with JBIT_TX2RFEN and JBIT_TX1RFEN.
+      bit_offset: 2
+      bit_size: 1
+    - name: TX2CW
+      description: "Does not modulate the Tx2 output, only constant wave."
+      bit_offset: 3
+      bit_size: 1
+    - name: INVTX1OFF
+      description: Inverts the Tx1 output if drivers are switched off.
+      bit_offset: 4
+      bit_size: 1
+    - name: INVTX2OFF
+      description: Inverts the Tx2 output if drivers are switched off.
+      bit_offset: 5
+      bit_size: 1
+    - name: INVTX1ON
+      description: Inverts the Tx1 output if drivers are switched on.
+      bit_offset: 6
+      bit_size: 1
+    - name: INVTX2ON
+      description: Inverts the Tx2 output if drivers are switched on.
+      bit_offset: 7
+      bit_size: 1
+fieldset/TXMODE:
+  bit_size: 8
+  fields:
+    - name: FRAMING
+      bit_offset: 0
+      bit_size: 2
+      enum: FRAMING
+    - name: TXMIX
+      description: Activates TXMix functionality.
+      bit_offset: 2
+      bit_size: 1
+    - name: INVMOD
+      description: Activates inverted transmission mode.
+      bit_offset: 3
+      bit_size: 1
+    - name: SPEED
+      bit_offset: 4
+      bit_size: 3
+      enum: SPEED
+    - name: CRCEN
+      description: Activates transmit or receive CRC.
+      bit_offset: 7
+      bit_size: 1
+fieldset/TXSEL:
+  bit_size: 8
+  fields:
+    - name: SIGOUTSEL
+      description: ""
+      bit_offset: 0
+      bit_size: 4
+    - name: DRIVERSEL
+      description: ""
+      bit_offset: 4
+      bit_size: 2
+    - name: LOADMODSEL
+      description: ""
+      bit_offset: 6
+      bit_size: 2
+fieldset/WATERLEVEL:
+  bit_size: 8
+  fields:
+    - name: WATERLEVEL
+      description: ""
+      bit_offset: 0
+      bit_size: 6
+enum/COMMAND_VAL:
+  bit_size: 4
+  variants:
+    - name: Idle
+      description: "No action, cancel the current command execution"
+      value: 0
+    - name: Configure
+      description: Configure FM17550 as ISO14443A card analog communication mode
+      value: 1
+    - name: GenerateRandomID
+      description: Generate a 10-byte random number
+      value: 2
+    - name: CalcCRC
+      description: Activate CRC coprocessor
+      value: 3
+    - name: Transmit
+      description: Transmit Data in transmit FIFO buffer
+      value: 4
+    - name: NoCmdChange
+      description: "The instruction does not change and can be used to modify the instruction without affecting the instruction CommandReg registers, such as the PowerDown bit"
+      value: 7
+    - name: Receive
+      description: Activate the receiver circuit
+      value: 8
+    - name: Transceive
+      description: Transmit the data in the FIFO buffer to the antenna and automatically activate the receiver after transmission
+      value: 12
+    - name: AutoColl
+      description: Handle ISO14443A anti-collision process (only supports card emulation mode)
+      value: 13
+    - name: Authent
+      description: Perform M1 security authentication as reader mode
+      value: 14
+    - name: SoftReset
+      description: Reset the FM17550
+      value: 15
+enum/FRAMING:
+  bit_size: 2
+  variants:
+    - name: ISO14443A
+      description: ISO14443A communication mode.
+      value: 0
+    - name: NFC
+      description: NFC/Active communication mode.
+      value: 1
+    - name: FELICA
+      description: FeliCa communication mode.
+      value: 2
+    - name: ISO14443B
+      description: ISO14443B communication mode.
+      value: 3
+enum/LPCD_ATTENUATION:
+  bit_size: 2
+  variants:
+    - name: x1_0
+      description: 1.0x
+      value: 0
+    - name: x1_2
+      description: 1.2x
+      value: 1
+    - name: x1_45
+      description: 1.45x
+      value: 2
+    - name: x2_0
+      description: 2.0x
+      value: 3
+    - name: x2_28
+      description: 2.28x
+      value: 4
+    - name: x2_6
+      description: 2.6x
+      value: 5
+    - name: x3_2
+      description: 3.2x
+      value: 6
+    - name: x4_0
+      description: 4.0x
+      value: 7
+enum/LPCD_AUTO_WUP_TIME:
+  bit_size: 2
+  variants:
+    - name: 6sec
+      description: 6 seconds
+      value: 0
+    - name: 12sec
+      description: 12 seconds
+      value: 1
+    - name: 15min
+      description: 15 min
+      value: 2
+    - name: 30min
+      description: 30 min
+      value: 3
+    - name: 1hour
+      description: 1 hour
+      value: 4
+    - name: 1_8hour
+      description: 1.8 hours
+      value: 5
+    - name: 3_6hour
+      description: 3.6 hours
+      value: 6
+    - name: 7_2hour
+      description: 7.2 hours
+      value: 7
+enum/LPCD_GAIN:
+  bit_size: 2
+  variants:
+    - name: x2div5
+      description: 2/5x
+      value: 0
+    - name: x2div3
+      description: 2/3x
+      value: 1
+    - name: x1div2
+      description: 1/2x
+      value: 2
+    - name: x1
+      description: 1x
+      value: 3
+enum/LPCD_T3CLKDIVK:
+  bit_size: 2
+  variants:
+    - name: Div4
+      value: 0
+    - name: Div8
+      value: 1
+    - name: Div16
+      value: 2
+enum/RXGAIN:
+  bit_size: 3
+  variants:
+    - name: 18dB
+      description: 18 dB
+      value: 0
+    - name: 23dB
+      description: 23 dB
+      value: 1
+    - name: 18dB_dup
+      description: 18 dB (dupe value)
+      value: 2
+    - name: 23dB_dup
+      description: 23 dB (dupe value)
+      value: 3
+    - name: 33dB
+      description: 33 dB
+      value: 4
+    - name: 38dB
+      description: 38 dB
+      value: 5
+    - name: 43dB
+      description: 43 dB
+      value: 6
+    - name: 48dB
+      description: 48 dB
+      value: 7
+enum/SPEED:
+  bit_size: 3
+  variants:
+    - name: 106KBPS
+      description: 106kbps
+      value: 0
+    - name: 212KBPS
+      description: 212kbps
+      value: 1
+    - name: 424KBPS
+      description: 424kbps
+      value: 2
+    - name: 848KBPS
+      description: 848kbps
+      value: 3
+    - name: 1_6MBPS
+      description: 1.6Mbps
+      value: 4
+    - name: 3_2MBPS
+      description: 3.3Mbps
+      value: 5

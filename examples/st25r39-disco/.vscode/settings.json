@@ -1,0 +1,7 @@
+{
+    "editor.formatOnSave": true,
+    "rust-analyzer.assist.importGranularity": "module",
+    "rust-analyzer.checkOnSave.allTargets": false,
+    "rust-analyzer.experimental.procAttrMacros": false,
+    "rust-analyzer.cargo.runBuildScripts": true,
+}

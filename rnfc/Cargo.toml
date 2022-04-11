@@ -1,0 +1,13 @@
+[package]
+name = "rnfc"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+rnfc-traits = { version = "0.1.0", path = "../rnfc-traits" }
+defmt = { version = "0.3", optional = true }
+log = { version = "0.4.14", optional = true }
+
+heapless = { version = "0.7.1", default-features = false } 
