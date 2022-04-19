@@ -80,6 +80,18 @@ where
     pub fn inner_mut(&mut self) -> &mut T {
         &mut self.tag
     }
+
+    pub async fn deselect(&mut self) -> Result<(), Error<T::Error>> {
+        let tx_buf = [0xC2];
+        let mut rx_buf = [0; 1];
+
+        let rx_len = self.tag.transceive(&tx_buf, &mut rx_buf).await.map_err(Error::Iso14443a)?;
+        if rx_len != 1 || rx_buf != [0xC2] {
+            return Err(Error::Protocol);
+        }
+
+        Ok(())
+    }
 }
 
 impl<T: Iso14443aReader> IsoDepReader for IsoDepA<T> {

@@ -92,6 +92,7 @@ async fn main(_spawner: Spawner, p: Peripherals) {
     return;
       */
 
+    /*
     loop {
         Timer::after(Duration::from_millis(1000)).await;
         let iso14 = st.start_iso14443a().await.unwrap();
@@ -105,7 +106,10 @@ async fn main(_spawner: Spawner, p: Peripherals) {
                 continue;
             }
         };
+
+        let mut card = IsoDepA::new(card).await.unwrap();
     }
+       */
 
     loop {
         Timer::after(Duration::from_millis(1000)).await;
@@ -113,10 +117,12 @@ async fn main(_spawner: Spawner, p: Peripherals) {
         let iso14 = st.start_iso14443a().await.unwrap();
 
         let mut poller = Poller::new(iso14);
-        let mut cards = poller.poll::<8>().await.unwrap();
+        let cards = poller.poll::<8>().await.unwrap();
         info!("found cards: {:02x}", cards);
 
         for uid in cards {
+            info!("checking card {:02x}", uid);
+
             let card = match poller.select_by_id(&uid).await {
                 Ok(x) => x,
                 Err(e) => {
@@ -124,15 +130,29 @@ async fn main(_spawner: Spawner, p: Peripherals) {
                     continue;
                 }
             };
+
+            let mut card = match IsoDepA::new(card).await {
+                Ok(x) => x,
+                Err(e) => {
+                    warn!("Failed ISO-DEP select, not an ISO-DEP card? {:?}", e);
+                    continue;
+                }
+            };
+
+            let mut rx = [0; 256];
+            let tx = [0x90, 0x60, 0x00, 0x00, 0x00];
+
+            let n = match card.transceive(&tx, &mut rx).await {
+                Ok(x) => x,
+                Err(e) => {
+                    warn!("trx failed: {:?}", e);
+                    continue;
+                }
+            };
+
+            card.deselect().await.unwrap();
+
+            info!("rxd: {:02x}", &rx[..n]);
         }
-
-        // let mut tag = IsoDepA::new(card).await.unwrap();
-
-        /*
-        let mut rx = [0; 256];
-        let tx = [0x90, 0x60, 0x00, 0x00, 0x00];
-        let n = tag.transceive(&tx, &mut rx).await.unwrap();
-        info!("rxd: {:02x}", &rx[..n]);
-         */
     }
 }
