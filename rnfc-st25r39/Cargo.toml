@@ -4,7 +4,7 @@ version = "0.1.0"
 edition = "2021"
 
 [features]
-defmt = [ "dep:defmt", "rnfc-traits/defmt" ]
+defmt = [ "dep:defmt", "rnfc-traits/defmt", "heapless/defmt-impl" ]
 
 [dependencies]
 defmt = { version = "0.3", optional = true }
