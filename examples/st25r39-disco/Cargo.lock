@@ -1002,6 +1002,9 @@ dependencies = [
 [[package]]
 name = "rnfc-traits"
 version = "0.1.0"
+dependencies = [
+ "defmt",
+]
 
 [[package]]
 name = "rustc_version"

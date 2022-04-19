@@ -1,0 +1,80 @@
+use embassy::time::{Duration, Timer};
+
+use crate::{Interface, St25r39};
+
+pub struct AatConfig {
+    pub a_min: u8,
+    pub a_max: u8,
+    pub a_start: u8,
+    pub a_step: u8,
+    pub b_min: u8,
+    pub b_max: u8,
+    pub b_start: u8,
+    pub b_step: u8,
+    pub pha_target: u8,
+    pub pha_weight: u8,
+    pub amp_target: u8,
+    pub amp_weight: u8,
+}
+
+impl<I: Interface> St25r39<I> {
+    pub async fn aat(&mut self, conf: AatConfig) {
+        let mut a = conf.a_start;
+        let mut b = conf.b_start;
+        let mut cost = self.aat_measure(a, b, &conf).await;
+
+        loop {
+            let mut best = None;
+            for (a, b) in [
+                (a.saturating_add(conf.a_step).min(conf.a_max), b),
+                (a.saturating_sub(conf.a_step).max(conf.a_min), b),
+                (a, b.saturating_add(conf.b_step).min(conf.b_max)),
+                (a, b.saturating_sub(conf.b_step).max(conf.b_min)),
+            ] {
+                let cost = self.aat_measure(a, b, &conf).await;
+
+                let new_best = match best {
+                    None => true,
+                    Some((old_cost, _, _)) => cost < old_cost,
+                };
+
+                if new_best {
+                    best = Some((cost, a, b));
+                }
+            }
+
+            let (new_cost, new_a, new_b) = best.unwrap();
+            if new_cost >= cost {
+                break;
+            }
+
+            cost = new_cost;
+            a = new_a;
+            b = new_b;
+        }
+        self.regs().ant_tune_a().write_value(a);
+        self.regs().ant_tune_a().write_value(b);
+    }
+
+    async fn aat_measure(&mut self, a: u8, b: u8, conf: &AatConfig) -> u32 {
+        self.regs().ant_tune_a().write_value(a);
+        self.regs().ant_tune_a().write_value(b);
+
+        // Wait for caps to settle.
+        Timer::after(Duration::from_millis(1)).await;
+
+        info!("aa");
+        let amp = self.measure_phase().await;
+        info!("aabb");
+        let pha = 0u8;
+        //let pha = self.measure_phase().await;
+        info!("aabbcc");
+
+        // calculate cost function
+        let cost = amp.abs_diff(conf.amp_target) as u32 * conf.amp_weight as u32
+            + pha.abs_diff(conf.pha_target) as u32 * conf.pha_weight as u32;
+
+        info!("a={} b={} amp={} pha={} cost={}", a, b, amp, pha, cost);
+        cost
+    }
+}

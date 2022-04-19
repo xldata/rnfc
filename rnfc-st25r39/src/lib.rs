@@ -5,10 +5,12 @@
 // This must go FIRST so that other mods see its macros.
 mod fmt;
 
+mod aat;
 mod interface;
 pub mod iso14443a;
 mod regs;
 
+pub use aat::AatConfig;
 pub use interface::{I2cInterface, Interface, SpiInterface};
 
 use self::regs::Regs;
@@ -346,15 +348,11 @@ impl<I: Interface> St25r39<I> {
         trace!("reg result = {=u8}", res);
     }
 
-    pub(crate) fn mode_off_inner(&mut self) {
+    pub(crate) fn mode_off(&mut self) {
         self.mode = Mode::Off;
         self.cmd(Command::Stop);
         // disable everything
         self.regs().op_control().write(|_| {});
-    }
-
-    pub async fn mode_off(&mut self) {
-        self.mode_off_inner();
     }
 
     pub async fn measure_amplitude(&mut self) -> u8 {
@@ -394,7 +392,7 @@ impl<I: Interface> St25r39<I> {
         res.cs_cal_val()
     }
 
-    pub async fn mode_on(&mut self) {
+    pub(crate) async fn mode_on(&mut self) {
         self.mode = Mode::On;
         self.enable_osc().await;
 
@@ -513,7 +511,6 @@ impl<I: Interface> St25r39<I> {
             w.set_om(regs::ModeOm::INI_ISO14443A);
             w.set_tr_am(false); // use OOK
         });
-        /*
         self.regs().tx_driver().write(|w| {
             w.set_am_mod(regs::TxDriverAmMod::_12PERCENT);
         });
@@ -533,7 +530,7 @@ impl<I: Interface> St25r39<I> {
             w.set_dis_corr(false); // Enable correlator reception
             w.set_nfc_n(0); // todo this changes
         });
-
+        /*
         self.regs().rx_conf1().write_value(0x08.into());
         self.regs().rx_conf2().write_value(0x2D.into());
         self.regs().rx_conf3().write_value(0x00.into());

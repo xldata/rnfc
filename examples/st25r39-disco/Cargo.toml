@@ -14,7 +14,7 @@ default = [
 rnfc-st25r39 = { path = "../../rnfc-st25r39", features = [ "defmt" ] }
 rnfc = { path = "../../rnfc", features = [ "defmt" ] }
 
-embassy = { version = "0.1.0", features = ["defmt", "nightly"] }
+embassy = { version = "0.1.0", features = ["defmt", "nightly", "defmt-timestamp-uptime"] }
 embassy-stm32 = { version = "0.1.0", features = ["defmt", "nightly", "unstable-pac", "stm32l476vg", "memory-x", "time-driver-tim2"] }
 
 defmt = { version = "0.3.0", optional = true }

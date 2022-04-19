@@ -6,7 +6,6 @@
 // Must go FIRST
 mod fmt;
 
-use core::sync::atomic::{AtomicUsize, Ordering};
 use defmt_rtt as _; // global logger
 use embassy::executor::Spawner;
 use embassy::time::{Duration, Timer};
@@ -18,18 +17,10 @@ use embassy_stm32::time::Hertz;
 use embassy_stm32::Peripherals;
 use panic_probe as _;
 
+use rnfc::iso14443a::Poller;
 use rnfc::iso_dep::IsoDepA;
 use rnfc::traits::iso_dep::Reader;
-use rnfc_st25r39::{SpiInterface, St25r39};
-
-defmt::timestamp! {"{=u64}", {
-        static COUNT: AtomicUsize = AtomicUsize::new(0);
-        // NOTE(no-CAS) `timestamps` runs with interrupts disabled
-        let n = COUNT.load(Ordering::Relaxed);
-        COUNT.store(n + 1, Ordering::Relaxed);
-        n as u64
-    }
-}
+use rnfc_st25r39::{AatConfig, SpiInterface, St25r39};
 
 fn config() -> embassy_stm32::Config {
     let mut cfg = embassy_stm32::Config::default();
@@ -38,7 +29,7 @@ fn config() -> embassy_stm32::Config {
         rcc::PLLClkDiv::Div2,
         rcc::PLLSrcDiv::Div1,
         rcc::PLLMul::Mul8,
-        Some(rcc::PLLClkDiv::Div2),
+        None,
     );
     cfg
 }
@@ -79,22 +70,69 @@ async fn main(_spawner: Spawner, p: Peripherals) {
     info!("yay");
      */
 
-    let tag = loop {
-        match st.select_iso14443a().await {
-            Ok(c) => break c,
-            Err(e) => warn!("select failed: {:?}", e),
-        }
-        Timer::after(Duration::from_millis(100)).await;
+    /*
+    let conf = AatConfig {
+        a_min: 0,
+        a_max: 255,
+        a_start: 128,
+        a_step: 32,
+        b_min: 0,
+        b_max: 255,
+        b_start: 128,
+        b_step: 32,
+        pha_target: 128,
+        pha_weight: 2,
+        amp_target: 196,
+        amp_weight: 1,
     };
-
-    let mut tag = IsoDepA::new(tag).await.unwrap();
-
-    let mut rx = [0; 256];
-    let tx = [0x90, 0x60, 0x00, 0x00, 0x00];
-    let n = tag.transceive(&tx, &mut rx).await.unwrap();
-    info!("rxd: {:02x}", &rx[..n]);
-
+    st.mode_on().await;
+    //st.iso14443a_start().await.unwrap();
+    st.aat(conf).await;
     info!("DONE");
+    return;
+      */
 
-    cortex_m::asm::bkpt();
+    loop {
+        Timer::after(Duration::from_millis(1000)).await;
+        let iso14 = st.start_iso14443a().await.unwrap();
+
+        let mut poller = Poller::new(iso14);
+
+        let card = match poller.select_any().await {
+            Ok(x) => x,
+            Err(e) => {
+                warn!("Failed to select card: {:?}", e);
+                continue;
+            }
+        };
+    }
+
+    loop {
+        Timer::after(Duration::from_millis(1000)).await;
+
+        let iso14 = st.start_iso14443a().await.unwrap();
+
+        let mut poller = Poller::new(iso14);
+        let mut cards = poller.poll::<8>().await.unwrap();
+        info!("found cards: {:02x}", cards);
+
+        for uid in cards {
+            let card = match poller.select_by_id(&uid).await {
+                Ok(x) => x,
+                Err(e) => {
+                    warn!("Failed to select card with UID {:02x}: {:?}", uid, e);
+                    continue;
+                }
+            };
+        }
+
+        // let mut tag = IsoDepA::new(card).await.unwrap();
+
+        /*
+        let mut rx = [0; 256];
+        let tx = [0x90, 0x60, 0x00, 0x00, 0x00];
+        let n = tag.transceive(&tx, &mut rx).await.unwrap();
+        info!("rxd: {:02x}", &rx[..n]);
+         */
+    }
 }
