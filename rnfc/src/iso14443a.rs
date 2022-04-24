@@ -300,7 +300,7 @@ pub struct Card<'d, T: LLReader> {
     sak: u8,
 }
 
-impl<'d, T: LLReader> Reader for Card<'d, T> {
+impl<'d, T: LLReader + 'd> Reader for Card<'d, T> {
     type Error = T::Error;
 
     type TransceiveFuture<'a> = impl Future<Output = Result<usize, Self::Error>> + 'a where Self: 'a;

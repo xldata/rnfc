@@ -68,7 +68,7 @@ impl<'d, I: Interface> Drop for Iso14443a<'d, I> {
     }
 }
 
-impl<'d, I: Interface> ll::Reader for Iso14443a<'d, I> {
+impl<'d, I: Interface + 'd> ll::Reader for Iso14443a<'d, I> {
     type Error = Error;
 
     type TransceiveFuture<'a> = impl Future<Output = Result<usize, Self::Error>> + 'a where Self: 'a ;
