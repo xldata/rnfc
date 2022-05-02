@@ -15,6 +15,7 @@ use embassy_stm32::rcc::{self};
 use embassy_stm32::spi::{Config, Phase, Polarity, Spi};
 use embassy_stm32::time::Hertz;
 use embassy_stm32::Peripherals;
+use embedded_hal::spi::blocking::ExclusiveDevice;
 use panic_probe as _;
 
 use rnfc::iso14443a::Poller;
@@ -43,11 +44,11 @@ async fn main(_spawner: Spawner, p: Peripherals) {
     let mut config = Config::default();
     config.mode.polarity = Polarity::IdleLow;
     config.mode.phase = Phase::CaptureOnSecondTransition;
-    let spi = Spi::new(p.SPI1, p.PA5, p.PA7, p.PE14, NoDma, NoDma, Hertz(1_000_000), config);
+    let spi_bus = Spi::new(p.SPI1, p.PA5, p.PA7, p.PE14, NoDma, NoDma, Hertz(1_000_000), config);
 
     let cs = Output::new(p.PA4, Level::High, Speed::VeryHigh);
-
-    let iface = SpiInterface::new(spi, cs);
+    let spi_device = ExclusiveDevice::new(spi_bus, cs);
+    let iface = SpiInterface::new(spi_device);
     let mut st = St25r39::new(iface).await;
 
     let _irq = Input::new(p.PE15, embassy_stm32::gpio::Pull::None);

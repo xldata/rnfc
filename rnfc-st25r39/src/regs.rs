@@ -20,11 +20,14 @@ impl<'a, I: Interface, T: Copy + Into<u8> + From<u8>> Reg<'a, I, T> {
     }
 
     pub fn read(&mut self) -> T {
-        self.iface.read_reg(self.addr).into()
+        match self.iface.read_reg(self.addr) {
+            Ok(res) => res.into(),
+            Err(_) => panic!("ERROR"),
+        }
     }
 
     pub fn write_value(&mut self, val: T) {
-        self.iface.write_reg(self.addr, val.into())
+        self.iface.write_reg(self.addr, val.into());
     }
 
     pub fn modify<R>(&mut self, f: impl FnOnce(&mut T) -> R) -> R {

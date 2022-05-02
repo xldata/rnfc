@@ -256,7 +256,7 @@ impl<I: Interface> St25r39<I> {
     }
 
     fn cmd(&mut self, cmd: Command) {
-        self.iface.do_command(cmd as u8)
+        self.iface.do_command(cmd as u8);
     }
 
     async fn cmd_wait(&mut self, cmd: Command) {
@@ -407,6 +407,8 @@ impl<I: Interface> St25r39<I> {
     /// Change into wakeup mode, return immediately.
     /// The IRQ pin will go high on wakeup.
     pub async fn mode_wakeup(&mut self, config: WakeupConfig) {
+        self.mode_on().await;
+
         self.mode = Mode::Wakeup;
         debug!("Entering wakeup mode");
 

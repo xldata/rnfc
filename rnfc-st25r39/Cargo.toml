@@ -13,4 +13,4 @@ log = { version = "0.4.14", optional = true }
 embassy = { version = "0.1.0", features = ["time"]}
 rnfc-traits = { version = "0.1.0", path = "../rnfc-traits" }
 heapless = { version = "0.7.1", default-features = false } 
-embedded-hal = "0.2.5"
+embedded-hal = "1.0.0-alpha.8"
