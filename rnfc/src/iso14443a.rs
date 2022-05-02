@@ -2,7 +2,7 @@ use core::future::Future;
 use heapless::Vec;
 use rnfc_traits::iso14443a::{Reader, UID_MAX_LEN};
 use rnfc_traits::iso14443a_ll as ll;
-use rnfc_traits::iso14443a_ll::{ErrorKind, Frame, Reader as LLReader};
+use rnfc_traits::iso14443a_ll::{Frame, Reader as LLReader};
 
 macro_rules! retry {
     ($tries:literal, $expr:expr) => {{
@@ -145,7 +145,7 @@ impl<T: LLReader> Poller<T> {
     }
 
     async fn transceive_hlta(&mut self) -> Result<(), Error<T::Error>> {
-        let mut tx = [0x50, 0x00];
+        let tx = [0x50, 0x00];
         let mut rx = [0; 1];
         let opts = Frame::Standard { timeout_ms: 1 };
         let _ = self.reader.transceive(&tx, &mut rx, opts).await.map_err(Error::Lower)?;

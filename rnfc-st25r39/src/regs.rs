@@ -2,6 +2,8 @@
 
 use core::marker::PhantomData;
 
+use crate::Error;
+
 use super::Interface;
 
 pub struct Reg<'a, I: Interface, T: Copy> {
@@ -19,31 +21,28 @@ impl<'a, I: Interface, T: Copy + Into<u8> + From<u8>> Reg<'a, I, T> {
         }
     }
 
-    pub fn read(&mut self) -> T {
-        match self.iface.read_reg(self.addr) {
-            Ok(res) => res.into(),
-            Err(_) => panic!("ERROR"),
-        }
+    pub fn read(&mut self) -> Result<T, Error<I::Error>> {
+        Ok(self.iface.read_reg(self.addr).map_err(Error::Interface)?.into())
     }
 
-    pub fn write_value(&mut self, val: T) {
-        self.iface.write_reg(self.addr, val.into());
+    pub fn write_value(&mut self, val: T) -> Result<(), Error<I::Error>> {
+        self.iface.write_reg(self.addr, val.into()).map_err(Error::Interface)
     }
 
-    pub fn modify<R>(&mut self, f: impl FnOnce(&mut T) -> R) -> R {
-        let mut val = self.read();
+    pub fn modify<R>(&mut self, f: impl FnOnce(&mut T) -> R) -> Result<R, Error<I::Error>> {
+        let mut val = self.read()?;
         let res = f(&mut val);
-        self.write_value(val);
-        res
+        self.write_value(val)?;
+        Ok(res)
     }
 }
 
 impl<'a, I: Interface, T: Default + Copy + Into<u8> + From<u8>> Reg<'a, I, T> {
-    pub fn write<R>(&mut self, f: impl FnOnce(&mut T) -> R) -> R {
+    pub fn write<R>(&mut self, f: impl FnOnce(&mut T) -> R) -> Result<R, Error<I::Error>> {
         let mut val = Default::default();
         let res = f(&mut val);
-        self.write_value(val);
-        res
+        self.write_value(val)?;
+        Ok(res)
     }
 }
 

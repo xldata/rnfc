@@ -1,6 +1,6 @@
 use embassy::time::{Duration, Timer};
 
-use crate::{Interface, St25r39};
+use crate::{Error, Interface, St25r39};
 
 pub struct AatConfig {
     pub a_min: u8,
@@ -18,10 +18,10 @@ pub struct AatConfig {
 }
 
 impl<I: Interface> St25r39<I> {
-    pub async fn aat(&mut self, conf: AatConfig) {
+    pub async fn aat(&mut self, conf: AatConfig) -> Result<(), Error<I::Error>> {
         let mut a = conf.a_start;
         let mut b = conf.b_start;
-        let mut cost = self.aat_measure(a, b, &conf).await;
+        let mut cost = self.aat_measure(a, b, &conf).await?;
 
         loop {
             let mut best = None;
@@ -31,7 +31,7 @@ impl<I: Interface> St25r39<I> {
                 (a, b.saturating_add(conf.b_step).min(conf.b_max)),
                 (a, b.saturating_sub(conf.b_step).max(conf.b_min)),
             ] {
-                let cost = self.aat_measure(a, b, &conf).await;
+                let cost = self.aat_measure(a, b, &conf).await?;
 
                 let new_best = match best {
                     None => true,
@@ -52,19 +52,21 @@ impl<I: Interface> St25r39<I> {
             a = new_a;
             b = new_b;
         }
-        self.regs().ant_tune_a().write_value(a);
-        self.regs().ant_tune_a().write_value(b);
+        self.regs().ant_tune_a().write_value(a)?;
+        self.regs().ant_tune_a().write_value(b)?;
+
+        Ok(())
     }
 
-    async fn aat_measure(&mut self, a: u8, b: u8, conf: &AatConfig) -> u32 {
-        self.regs().ant_tune_a().write_value(a);
-        self.regs().ant_tune_a().write_value(b);
+    async fn aat_measure(&mut self, a: u8, b: u8, conf: &AatConfig) -> Result<u32, Error<I::Error>> {
+        self.regs().ant_tune_a().write_value(a)?;
+        self.regs().ant_tune_a().write_value(b)?;
 
         // Wait for caps to settle.
         Timer::after(Duration::from_millis(1)).await;
 
         info!("aa");
-        let amp = self.measure_phase().await;
+        let amp = self.measure_phase().await?;
         info!("aabb");
         let pha = 0u8;
         //let pha = self.measure_phase().await;
@@ -75,6 +77,6 @@ impl<I: Interface> St25r39<I> {
             + pha.abs_diff(conf.pha_target) as u32 * conf.pha_weight as u32;
 
         info!("a={} b={} amp={} pha={} cost={}", a, b, amp, pha, cost);
-        cost
+        Ok(cost)
     }
 }

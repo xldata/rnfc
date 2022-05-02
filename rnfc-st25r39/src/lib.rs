@@ -1,6 +1,7 @@
 #![no_std]
 #![feature(generic_associated_types)]
 #![feature(type_alias_impl_trait)]
+#![deny(unused_must_use)]
 
 // This must go FIRST so that other mods see its macros.
 mod fmt;
@@ -14,7 +15,17 @@ pub use aat::AatConfig;
 pub use interface::{I2cInterface, Interface, SpiInterface};
 
 use self::regs::Regs;
+use embassy::time::{Duration, Instant};
 use embassy::util::yield_now;
+
+const DEFAULT_TIMEOUT: Duration = Duration::from_millis(500);
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[cfg_attr(feature = "defmt", derive(defmt::Format))]
+pub enum Error<T> {
+    Interface(T),
+    Timeout,
+}
 
 /// Direct commands
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -221,10 +232,21 @@ pub enum WakeupPeriod {
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
-pub enum FieldOnError {
+pub enum FieldOnError<T> {
     /// There's some other device emitting its own field, so we shouldn't
     /// turn ours on.
     FieldCollision,
+    Interface(T),
+    Timeout,
+}
+
+impl<T> From<Error<T>> for FieldOnError<T> {
+    fn from(val: Error<T>) -> Self {
+        match val {
+            Error::Interface(e) => FieldOnError::Interface(e),
+            Error::Timeout => FieldOnError::Timeout,
+        }
+    }
 }
 
 #[derive(PartialEq, Eq, Clone, Copy)]
@@ -241,52 +263,53 @@ pub struct St25r39<I: Interface> {
 }
 
 impl<I: Interface> St25r39<I> {
-    pub async fn new(iface: I) -> Self {
+    pub async fn new(iface: I) -> Result<Self, Error<I::Error>> {
         let mut this = Self {
             iface,
             irqs: 0,
             mode: Mode::On,
         };
-        this.init().await;
-        this
+        this.init().await?;
+        Ok(this)
     }
 
     fn regs(&mut self) -> Regs<I> {
         Regs::new(&mut self.iface)
     }
 
-    fn cmd(&mut self, cmd: Command) {
-        self.iface.do_command(cmd as u8);
+    fn cmd(&mut self, cmd: Command) -> Result<(), Error<I::Error>> {
+        self.iface.do_command(cmd as u8).map_err(Error::Interface)
     }
 
-    async fn cmd_wait(&mut self, cmd: Command) {
-        self.irq_clear();
-        self.cmd(cmd);
-        self.irq_wait(Interrupt::Dct).await;
+    async fn cmd_wait(&mut self, cmd: Command) -> Result<(), Error<I::Error>> {
+        self.irq_clear()?;
+        self.cmd(cmd)?;
+        self.irq_wait(Interrupt::Dct).await
     }
 
-    async fn enable_osc(&mut self) {
+    async fn enable_osc(&mut self) -> Result<(), Error<I::Error>> {
         trace!("Starting osc...");
-        self.regs().op_control().write(|w| w.set_en(true));
-        while !self.regs().aux_display().read().osc_ok() {}
+        self.regs().op_control().write(|w| w.set_en(true))?;
+        while !self.regs().aux_display().read()?.osc_ok() {}
+        Ok(())
     }
 
-    async fn init(&mut self) {
-        self.cmd(Command::SetDefault);
+    async fn init(&mut self) -> Result<(), Error<I::Error>> {
+        self.cmd(Command::SetDefault)?;
 
         self.regs().test_unk().write(|w| {
             w.set_dis_overheat_prot(true);
-        });
+        })?;
 
-        let id = self.regs().ic_identity().read();
+        let id = self.regs().ic_identity().read()?;
         trace!("ic_type = {:02x} ic_rev = {:02x}", id.ic_type().0, id.ic_rev().0);
 
         // Enable OSC
-        self.enable_osc().await;
+        self.enable_osc().await?;
 
         // Measure vdd
         trace!("measuring vdd...");
-        let vdd_mv = self.measure_vdd().await;
+        let vdd_mv = self.measure_vdd().await?;
         trace!("measure vdd result = {=u32}mv", vdd_mv);
 
         let sup3v = vdd_mv < 3600;
@@ -298,88 +321,97 @@ impl<I: Interface> St25r39<I> {
 
         self.regs().io_conf2().write(|w| {
             w.set_sup_3v(sup3v);
-        });
+        })?;
 
         // Disable MCU_CLK
         self.regs().io_conf1().write(|w| {
             w.set_out_cl(regs::IoConf1OutCl::DISABLED);
             w.set_lf_clk_off(true);
-        });
+        })?;
 
         // Enable minimum non-overlap
-        //self.regs().res_am_mod().write(|w| w.set_fa3_f(true));
+        //self.regs().res_am_mod().write(|w| w.set_fa3_f(true))?;
 
         // Set ext field detect activ/deactiv thresholds
         //self.regs().field_threshold_actv().write(|w| {
         //    w.set_trg(regs::FieldThresholdActvTrg::_105MV);
         //    w.set_rfe(regs::FieldThresholdActvRfe::_105MV);
-        //});
+        //})?;
         //self.regs().field_threshold_deactv().write(|w| {
         //    w.set_trg(regs::FieldThresholdDeactvTrg::_75MV);
         //    w.set_rfe(regs::FieldThresholdDeactvRfe::_75MV);
-        //});
+        //})?;
 
         //self.regs().aux_mod().write(|w| {
         //    w.set_lm_ext(false); // Disable external Load Modulation
         //    w.set_lm_dri(true); // Enable internal Load Modulation
-        //});
+        //})?;
 
         //self.regs().emd_sup_conf().write(|w| {
         //    w.set_rx_start_emv(true);
-        //});
+        //})?;
 
         // AAT not in use
-        //self.regs().ant_tune_a().write_value(0x82);
-        //self.regs().ant_tune_b().write_value(0x82);
+        //self.regs().ant_tune_a().write_value(0x82)?;
+        //self.regs().ant_tune_b().write_value(0x82)?;
 
         self.regs().op_control().modify(|w| {
             w.set_en_fd(regs::OpControlEnFd::AUTO_EFD);
-        });
+        })?;
 
         // Adjust regulators
 
         // Before sending the adjust regulator command it is required to toggle the bit reg_s by setting it first to 1 and then reset it to 0.
-        self.regs().regulator_control().write(|w| w.set_reg_s(true));
-        self.regs().regulator_control().write(|w| w.set_reg_s(false));
+        self.regs().regulator_control().write(|w| w.set_reg_s(true))?;
+        self.regs().regulator_control().write(|w| w.set_reg_s(false))?;
 
-        self.cmd_wait(Command::AdjustRegulators).await;
+        self.cmd_wait(Command::AdjustRegulators).await?;
 
-        let res = self.regs().regulator_result().read().0;
+        let res = self.regs().regulator_result().read()?.0;
         trace!("reg result = {=u8}", res);
+
+        Ok(())
     }
 
-    pub(crate) fn mode_off(&mut self) {
+    pub(crate) fn mode_off(&mut self) -> Result<(), Error<I::Error>> {
         self.mode = Mode::Off;
-        self.cmd(Command::Stop);
+        self.cmd(Command::Stop)?;
         // disable everything
-        self.regs().op_control().write(|_| {});
+        self.regs().op_control().write(|_| {})?;
+        Ok(())
     }
 
-    pub async fn measure_amplitude(&mut self) -> u8 {
-        self.cmd_wait(Command::MeasureAmplitude).await;
+    pub async fn measure_amplitude(&mut self) -> Result<u8, Error<I::Error>> {
+        self.cmd_wait(Command::MeasureAmplitude).await?;
         self.regs().ad_result().read()
     }
 
-    pub async fn measure_phase(&mut self) -> u8 {
-        self.cmd_wait(Command::MeasurePhase).await;
+    pub async fn measure_phase(&mut self) -> Result<u8, Error<I::Error>> {
+        self.cmd_wait(Command::MeasurePhase).await?;
         self.regs().ad_result().read()
     }
 
-    pub async fn measure_capacitance(&mut self) -> u8 {
-        self.cmd_wait(Command::MeasureCapacitance).await;
+    pub async fn measure_capacitance(&mut self) -> Result<u8, Error<I::Error>> {
+        self.cmd_wait(Command::MeasureCapacitance).await?;
         self.regs().ad_result().read()
     }
 
-    pub async fn calibrate_capacitance(&mut self) -> u8 {
+    pub async fn calibrate_capacitance(&mut self) -> Result<u8, Error<I::Error>> {
         // Clear Manual calibration values to enable automatic calibration mode
-        self.regs().cap_sensor_control().write(|_| {});
+        self.regs().cap_sensor_control().write(|_| {})?;
 
         // Don't use `cmd_wait`, the irq only fires in Ready mode (op_control.en = 1).
         // Instead, wait for cap_sensor_result.cs_cal_end
-        self.cmd(Command::CalibrateCSensor);
+        self.cmd(Command::CalibrateCSensor)?;
+
+        let deadline = Instant::now() + DEFAULT_TIMEOUT;
 
         let res = loop {
-            let res = self.regs().cap_sensor_result().read();
+            if Instant::now() > deadline {
+                return Err(Error::Timeout);
+            }
+
+            let res = self.regs().cap_sensor_result().read()?;
             if res.cs_cal_err() {
                 panic!("Capacitive sensor calibration failed!");
             }
@@ -389,32 +421,33 @@ impl<I: Interface> St25r39<I> {
 
             yield_now().await;
         };
-        res.cs_cal_val()
+        Ok(res.cs_cal_val())
     }
 
-    pub(crate) async fn mode_on(&mut self) {
+    pub(crate) async fn mode_on(&mut self) -> Result<(), Error<I::Error>> {
         self.mode = Mode::On;
-        self.enable_osc().await;
+        self.enable_osc().await?;
 
         self.regs().op_control().modify(|w| {
             w.set_en_fd(regs::OpControlEnFd::AUTO_EFD);
-        });
+        })?;
         self.regs().tx_driver().write(|w| {
             w.set_d_res(3);
-        });
+        })?;
+        Ok(())
     }
 
     /// Change into wakeup mode, return immediately.
     /// The IRQ pin will go high on wakeup.
-    pub async fn mode_wakeup(&mut self, config: WakeupConfig) {
-        self.mode_on().await;
+    pub async fn mode_wakeup(&mut self, config: WakeupConfig) -> Result<(), Error<I::Error>> {
+        self.mode_on().await?;
 
         self.mode = Mode::Wakeup;
         debug!("Entering wakeup mode");
 
-        self.cmd(Command::Stop);
-        self.regs().op_control().write(|_| {});
-        self.regs().mode().write(|w| w.set_om(regs::ModeOm::INI_ISO14443A));
+        self.cmd(Command::Stop)?;
+        self.regs().op_control().write(|_| {})?;
+        self.regs().mode().write(|w| w.set_om(regs::ModeOm::INI_ISO14443A))?;
 
         let mut wtc = regs::WupTimerControl(0);
         let mut irqs = 0;
@@ -427,11 +460,11 @@ impl<I: Interface> St25r39<I> {
             conf.set_am_d(m.delta);
             match m.reference {
                 WakeupReference::Manual(val) => {
-                    self.regs().amplitude_measure_ref().write_value(val);
+                    self.regs().amplitude_measure_ref().write_value(val)?;
                 }
                 WakeupReference::Automatic => {
-                    let val = self.measure_amplitude().await;
-                    self.regs().amplitude_measure_ref().write_value(val);
+                    let val = self.measure_amplitude().await?;
+                    self.regs().amplitude_measure_ref().write_value(val)?;
                 }
                 WakeupReference::AutoAverage {
                     include_irq_measurement,
@@ -442,7 +475,7 @@ impl<I: Interface> St25r39<I> {
                     conf.set_am_aew(weight);
                 }
             }
-            self.regs().amplitude_measure_conf().write_value(conf);
+            self.regs().amplitude_measure_conf().write_value(conf)?;
             wtc.set_wam(true);
             irqs |= 1 << Interrupt::Wam as u32;
         }
@@ -451,11 +484,11 @@ impl<I: Interface> St25r39<I> {
             conf.set_pm_d(m.delta);
             match m.reference {
                 WakeupReference::Manual(val) => {
-                    self.regs().phase_measure_ref().write_value(val);
+                    self.regs().phase_measure_ref().write_value(val)?;
                 }
                 WakeupReference::Automatic => {
-                    let val = self.measure_phase().await;
-                    self.regs().phase_measure_ref().write_value(val);
+                    let val = self.measure_phase().await?;
+                    self.regs().phase_measure_ref().write_value(val)?;
                 }
                 WakeupReference::AutoAverage {
                     include_irq_measurement,
@@ -466,25 +499,25 @@ impl<I: Interface> St25r39<I> {
                     conf.set_pm_aew(weight);
                 }
             }
-            self.regs().phase_measure_conf().write_value(conf);
+            self.regs().phase_measure_conf().write_value(conf)?;
             wtc.set_wph(true);
             irqs |= 1 << Interrupt::Wph as u32;
         }
         if let Some(m) = config.capacitive {
             debug!("capacitance calibrating...");
-            let val = self.calibrate_capacitance().await;
+            let val = self.calibrate_capacitance().await?;
             debug!("capacitance calibrated: {}", val);
 
             let mut conf = regs::CapacitanceMeasureConf(0);
             conf.set_cm_d(m.delta);
             match m.reference {
                 WakeupReference::Manual(val) => {
-                    self.regs().capacitance_measure_ref().write_value(val);
+                    self.regs().capacitance_measure_ref().write_value(val)?;
                 }
                 WakeupReference::Automatic => {
-                    let val = self.measure_capacitance().await;
+                    let val = self.measure_capacitance().await?;
                     info!("Measured: {}", val);
-                    self.regs().capacitance_measure_ref().write_value(val);
+                    self.regs().capacitance_measure_ref().write_value(val)?;
                 }
                 WakeupReference::AutoAverage {
                     include_irq_measurement,
@@ -495,67 +528,69 @@ impl<I: Interface> St25r39<I> {
                     conf.set_cm_aew(weight);
                 }
             }
-            self.regs().capacitance_measure_conf().write_value(conf);
+            self.regs().capacitance_measure_conf().write_value(conf)?;
             wtc.set_wcap(true);
             irqs |= 1 << Interrupt::Wcap as u32;
         }
 
-        self.irq_clear();
+        self.irq_clear()?;
 
-        self.regs().wup_timer_control().write_value(wtc);
-        self.regs().op_control().write(|w| w.set_wu(true));
-        self.irq_set_mask(!irqs);
+        self.regs().wup_timer_control().write_value(wtc)?;
+        self.regs().op_control().write(|w| w.set_wu(true))?;
+        self.irq_set_mask(!irqs)?;
         debug!("Entered wakeup mode");
+
+        Ok(())
     }
 
-    async fn field_on(&mut self) -> Result<(), FieldOnError> {
+    async fn field_on(&mut self) -> Result<(), FieldOnError<I::Error>> {
         self.regs().mode().write(|w| {
             w.set_om(regs::ModeOm::INI_ISO14443A);
             w.set_tr_am(false); // use OOK
-        });
+        })?;
         self.regs().tx_driver().write(|w| {
             w.set_am_mod(regs::TxDriverAmMod::_12PERCENT);
-        });
+        })?;
         self.regs().aux_mod().write(|w| {
             w.set_lm_dri(true); // Enable internal Load Modulation
             w.set_dis_reg_am(false); // Enable regulator-based AM
             w.set_res_am(false);
-        });
+        })?;
 
         // Default over/under shoot protiection
-        self.regs().overshoot_conf1().write_value(0x40.into());
-        self.regs().overshoot_conf2().write_value(0x03.into());
-        self.regs().undershoot_conf1().write_value(0x40.into());
-        self.regs().undershoot_conf2().write_value(0x03.into());
+        self.regs().overshoot_conf1().write_value(0x40.into())?;
+        self.regs().overshoot_conf2().write_value(0x03.into())?;
+        self.regs().undershoot_conf1().write_value(0x40.into())?;
+        self.regs().undershoot_conf2().write_value(0x03.into())?;
 
         self.regs().aux().write(|w| {
             w.set_dis_corr(false); // Enable correlator reception
             w.set_nfc_n(0); // todo this changes
-        });
+        })?;
         /*
-        self.regs().rx_conf1().write_value(0x08.into());
-        self.regs().rx_conf2().write_value(0x2D.into());
-        self.regs().rx_conf3().write_value(0x00.into());
-        self.regs().rx_conf4().write_value(0x00.into());
-        self.regs().corr_conf1().write_value(0x51.into());
-        self.regs().corr_conf2().write_value(0x00.into());
+        self.regs().rx_conf1().write_value(0x08.into())?;
+        self.regs().rx_conf2().write_value(0x2D.into())?;
+        self.regs().rx_conf3().write_value(0x00.into())?;
+        self.regs().rx_conf4().write_value(0x00.into())?;
+        self.regs().corr_conf1().write_value(0x51.into())?;
+        self.regs().corr_conf2().write_value(0x00.into())?;
          */
 
         self.regs().bit_rate().write(|w| {
             w.set_rxrate(regs::BitRateE::_106);
             w.set_txrate(regs::BitRateE::_106);
-        });
+        })?;
 
         // defaults
-        self.regs().iso14443a_nfc().write(|_| {});
+        self.regs().iso14443a_nfc().write(|_| {})?;
 
         // Field ON
 
         // GT is done by software
-        self.regs().field_on_gt().write_value(0);
+        self.regs().field_on_gt().write_value(0)?;
 
-        self.irq_clear(); // clear
-        self.cmd(Command::InitialRfCollision);
+        self.irq_clear()?; // clear
+        self.cmd(Command::InitialRfCollision)?;
 
         loop {
             if self.irq(Interrupt::Cac) {
@@ -565,26 +600,26 @@ impl<I: Interface> St25r39<I> {
                 break;
             }
 
-            self.irq_update();
+            self.irq_update()?;
         }
 
         self.regs().op_control().modify(|w| {
             w.set_tx_en(true);
             w.set_rx_en(true);
-        });
+        })?;
 
         Ok(())
     }
 
-    async fn measure_vdd(&mut self) -> u32 {
+    async fn measure_vdd(&mut self) -> Result<u32, Error<I::Error>> {
         self.regs()
             .regulator_control()
-            .write(|w| w.set_mpsv(regs::RegulatorControlMpsv::VDD));
-        self.cmd_wait(Command::MeasureVdd).await;
-        let res = self.regs().ad_result().read() as u32;
+            .write(|w| w.set_mpsv(regs::RegulatorControlMpsv::VDD))?;
+        self.cmd_wait(Command::MeasureVdd).await?;
+        let res = self.regs().ad_result().read()? as u32;
 
         // result is in units of 23.4mV
-        (res * 234 + 5) / 10
+        Ok((res * 234 + 5) / 10)
     }
 
     // =======================
@@ -594,28 +629,40 @@ impl<I: Interface> St25r39<I> {
         return (self.irqs & (1 << (irq as u8))) != 0;
     }
 
-    async fn irq_wait(&mut self, irq: Interrupt) {
-        self.irq_update();
+    async fn irq_wait_timeout(&mut self, irq: Interrupt, timeout: Duration) -> Result<(), Error<I::Error>> {
+        let deadline = Instant::now() + timeout;
+        self.irq_update()?;
         while !self.irq(irq) {
+            if Instant::now() > deadline {
+                return Err(Error::Timeout);
+            }
             yield_now().await;
-            self.irq_update();
+            self.irq_update()?;
         }
+        Ok(())
     }
 
-    fn irq_update(&mut self) {
+    async fn irq_wait(&mut self, irq: Interrupt) -> Result<(), Error<I::Error>> {
+        self.irq_wait_timeout(irq, DEFAULT_TIMEOUT).await
+    }
+
+    fn irq_update(&mut self) -> Result<(), Error<I::Error>> {
         for i in 0..4 {
-            self.irqs |= (self.regs().irq_main(i).read() as u32) << (i * 8);
+            self.irqs |= (self.regs().irq_main(i).read()? as u32) << (i * 8);
         }
+        Ok(())
     }
 
-    fn irq_clear(&mut self) {
-        self.irq_update();
+    fn irq_clear(&mut self) -> Result<(), Error<I::Error>> {
+        self.irq_update()?;
         self.irqs = 0;
+        Ok(())
     }
 
-    fn irq_set_mask(&mut self, mask: u32) {
+    fn irq_set_mask(&mut self, mask: u32) -> Result<(), Error<I::Error>> {
         for i in 0..4 {
-            self.regs().irq_mask(i).write_value((mask >> (i * 8)) as u8);
+            self.regs().irq_mask(i).write_value((mask >> (i * 8)) as u8)?;
         }
+        Ok(())
     }
 }

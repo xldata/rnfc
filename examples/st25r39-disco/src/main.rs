@@ -6,6 +6,8 @@
 // Must go FIRST
 mod fmt;
 
+mod device;
+
 use defmt_rtt as _; // global logger
 use embassy::executor::Spawner;
 use embassy::time::{Duration, Timer};
@@ -15,13 +17,14 @@ use embassy_stm32::rcc::{self};
 use embassy_stm32::spi::{Config, Phase, Polarity, Spi};
 use embassy_stm32::time::Hertz;
 use embassy_stm32::Peripherals;
-use embedded_hal::spi::blocking::ExclusiveDevice;
 use panic_probe as _;
 
 use rnfc::iso14443a::Poller;
 use rnfc::iso_dep::IsoDepA;
 use rnfc::traits::iso_dep::Reader;
-use rnfc_st25r39::{AatConfig, SpiInterface, St25r39};
+use rnfc_st25r39::{SpiInterface, St25r39};
+
+use crate::device::ExclusiveDevice;
 
 fn config() -> embassy_stm32::Config {
     let mut cfg = embassy_stm32::Config::default();
@@ -49,7 +52,7 @@ async fn main(_spawner: Spawner, p: Peripherals) {
     let cs = Output::new(p.PA4, Level::High, Speed::VeryHigh);
     let spi_device = ExclusiveDevice::new(spi_bus, cs);
     let iface = SpiInterface::new(spi_device);
-    let mut st = St25r39::new(iface).await;
+    let mut st = St25r39::new(iface).await.unwrap();
 
     let _irq = Input::new(p.PE15, embassy_stm32::gpio::Pull::None);
 
