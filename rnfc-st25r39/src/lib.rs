@@ -665,4 +665,32 @@ impl<I: Interface> St25r39<I> {
         }
         Ok(())
     }
+
+    pub fn raw(&mut self) -> Raw<'_, I> {
+        Raw { inner: self }
+    }
+}
+
+pub struct Raw<'a, I: Interface> {
+    inner: &'a mut St25r39<I>,
+}
+
+impl<'a, I: Interface> Raw<'a, I> {
+    pub async fn field_on(&mut self) -> Result<(), FieldOnError<I::Error>> {
+        self.inner.mode_on().await?;
+        self.inner.field_on().await?;
+        Ok(())
+    }
+    pub async fn field_off(&mut self) -> Result<(), Error<I::Error>> {
+        self.inner.mode_off()?;
+        Ok(())
+    }
+    pub async fn driver_hi_z(&mut self) -> Result<(), Error<I::Error>> {
+        self.inner.mode_off()?;
+        self.inner.regs().tx_driver().write(|w| {
+            w.set_d_res(15); // hi-z
+        })?;
+
+        Ok(())
+    }
 }
