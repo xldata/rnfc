@@ -8,9 +8,9 @@ const FSC_MAX: usize = 256;
 const FSC_MAX_WITHOUT_CRC: usize = FSC_MAX - 2;
 
 pub struct IsoDepA<T: Iso14443aReader> {
-    tag: T,
+    card: T,
 
-    /// Max frame size we can send to the tag, including header and crc.
+    /// Max frame size we can send to the card, including header and crc.
     /// Ex: if header is 1 byte (no CID/NAD) then max INF field size is FSC-3.
     fsc: usize,
 
@@ -44,11 +44,11 @@ impl<T: Iso14443aReader> IsoDepA<T>
 where
     T::Error: crate::fmt::Format,
 {
-    pub async fn new(mut tag: T) -> Result<Self, Error<T::Error>> {
+    pub async fn new(mut card: T) -> Result<Self, Error<T::Error>> {
         // RATS
         let req = [0xe0, 0x80];
         let mut res = [0; ATS_MAX_LEN];
-        let res_len = match tag.transceive(&req, &mut res).await {
+        let res_len = match card.transceive(&req, &mut res).await {
             Ok(len) => len,
             Err(e) => {
                 warn!("Trx RATS failed: {:?}", e);
@@ -70,22 +70,26 @@ where
         let fsc = FS_DIV_2_TABLE[fsci] as usize * 2;
         debug!("fsc = {}", fsc);
 
-        Ok(Self { tag, fsc, spinny_bit: 0 })
+        Ok(Self {
+            card,
+            fsc,
+            spinny_bit: 0,
+        })
     }
 
     pub fn inner(&self) -> &T {
-        &self.tag
+        &self.card
     }
 
     pub fn inner_mut(&mut self) -> &mut T {
-        &mut self.tag
+        &mut self.card
     }
 
     pub async fn deselect(&mut self) -> Result<(), Error<T::Error>> {
         let tx_buf = [0xC2];
         let mut rx_buf = [0; 1];
 
-        let rx_len = self.tag.transceive(&tx_buf, &mut rx_buf).await.map_err(Error::Iso14443a)?;
+        let rx_len = self.card.transceive(&tx_buf, &mut rx_buf).await.map_err(Error::Iso14443a)?;
         if rx_len != 1 || rx_buf != [0xC2] {
             return Err(Error::Protocol);
         }
@@ -117,7 +121,7 @@ impl<T: Iso14443aReader> IsoDepReader for IsoDepA<T> {
 
             let rx_len = loop {
                 let rx_len = self
-                    .tag
+                    .card
                     .transceive(&tx_buf[..tx_len], &mut rx_buf)
                     .await
                     .map_err(Error::Iso14443a)?;
