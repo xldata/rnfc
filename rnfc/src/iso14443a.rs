@@ -55,7 +55,7 @@ impl<T: LLReader> Poller<T> {
             .await
             .map_err(Error::Lower)?;
         if bits != 16 {
-            warn!("WUPA response wrong lengt: {} bits", bits);
+            warn!("WUPA response wrong length: {} bits", bits);
             return Err(Error::Protocol);
         }
         Ok(rx)
@@ -70,7 +70,7 @@ impl<T: LLReader> Poller<T> {
             .await
             .map_err(Error::Lower)?;
         if bits != 16 {
-            warn!("REQA response wrong lengt: {} bits", bits);
+            warn!("REQA response wrong length: {} bits", bits);
             return Err(Error::Protocol);
         }
         Ok(rx)
@@ -229,8 +229,9 @@ impl<T: LLReader> Poller<T> {
         })
     }
 
-    /// Polls and returns a list of all cards found.
-    pub async fn poll<const N: usize>(&mut self) -> Result<Vec<Vec<u8, UID_MAX_LEN>, N>, Error<T::Error>> {
+    /// Search for all cards in the field, and return a list of their IDs.
+    /// You can connect to one with [`Self::select_by_id`].
+    pub async fn search<const N: usize>(&mut self) -> Result<Vec<Vec<u8, UID_MAX_LEN>, N>, Error<T::Error>> {
         let mut res = Vec::new();
 
         'out: for _ in 0..(N * 4) {
