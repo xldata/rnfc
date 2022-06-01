@@ -24,8 +24,8 @@ panic-probe = { version = "0.3", features = ["print-defmt"] }
 futures = { version = "0.3.17", default-features = false, features = ["async-await"] }
 rand = { version = "0.8.4", default-features = false }
 embedded-storage = "0.3.0"
-embedded-hal = "0.2"
-
+embedded-hal = { version = "1.0.0-alpha.8" }
+embedded-hal-async = { version = "0.1.0-alpha.1" }
 
 [patch.crates-io]
 defmt = { git = "https://github.com/knurling-rs/defmt/" }

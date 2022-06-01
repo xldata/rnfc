@@ -15,5 +15,5 @@ log = { version = "0.4.14", optional = true }
 
 futures = { version = "0.3.17", default-features = false, features = ["async-await"] }
 embassy = { version = "0.1.0", features = ["time"] }
-embedded-hal = { version = "1.0.0-alpha.7", git = "https://github.com/embassy-rs/embedded-hal", branch = "embassy2" }
-embedded-hal-async = { version = "0.0.1", git = "https://github.com/embassy-rs/embedded-hal", branch = "embassy2" }
+embedded-hal = { version = "1.0.0-alpha.8" }
+embedded-hal-async = { version = "0.1.0-alpha.1" }

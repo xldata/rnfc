@@ -6,23 +6,16 @@
 mod fmt;
 
 mod interface;
+pub mod iso14443a;
 mod regs;
 
-pub use interface::*;
-
-use core::fmt::Debug;
-use core::future::Future;
 use cortex_m::asm::delay;
-use embedded_hal::digital::v2::{InputPin, OutputPin};
+use embassy::time::{Duration, Timer};
+use embedded_hal::digital::blocking::{InputPin, OutputPin};
 use embedded_hal_async::digital::Wait;
 use regs::Regs;
-use rnfc_traits::iso14443a_ll::{Reader, TransceiveOptions, TransceiveResult};
 
-#[derive(Debug, PartialEq, Eq, Clone, Copy)]
-pub enum Error {
-    Other,
-    Timeout,
-}
+pub use interface::*;
 
 pub struct LpcdConfig {
     pub t1cfg: u8,
@@ -43,8 +36,6 @@ impl<I: Interface, NpdPin, IrqPin> Fm175xx<I, NpdPin, IrqPin>
 where
     NpdPin: OutputPin,
     IrqPin: InputPin + Wait,
-    NpdPin::Error: Debug,
-    IrqPin::Error: Debug,
 {
     pub fn new(iface: I, npd: NpdPin, irq: IrqPin) -> Self {
         Self { iface, npd, irq }
@@ -198,6 +189,12 @@ where
         //    w.set_en(false);
         //    w.set_time(regs::LpcdAutoWupTime::_1HOUR);
         //});
+
+        self.npd.set_low().unwrap();
+
+        info!("Waiting for irq...");
+        self.irq.wait_for_low().await.unwrap();
+        info!("Got irq!!");
     }
 
     fn lpcd_set_adc_config(&mut self, reference: u8, bias_current: u8) {
@@ -266,14 +263,14 @@ where
         ((h & 0x3) << 6) | (l & 0x3f)
     }
 
-    pub fn reset(&mut self) {
+    pub async fn reset(&mut self) {
         self.npd.set_low().unwrap();
-        delay(640_000); // 10ms
+        Timer::after(Duration::from_millis(10)).await;
         self.npd.set_high().unwrap();
 
         debug!("softreset");
         self.regs().command().write(|w| w.set_command(regs::CommandVal::SOFTRESET));
-        delay(640_000);
+        Timer::after(Duration::from_millis(10)).await;
         assert_eq!(self.regs().command().read().0, 0x20);
 
         let ver = self.regs().version().read();
@@ -284,47 +281,6 @@ where
         self.regs().txcontrol().write(|w| {
             w.set_tx1rfen(false);
             w.set_tx2rfen(false);
-        });
-    }
-
-    pub fn init_iso14443a(&mut self) {
-        self.regs().txcontrol().write(|w| {
-            w.set_tx1rfen(true);
-            w.set_tx2rfen(true);
-            w.set_invtx2on(true);
-        });
-
-        delay(640_000); // 10ms
-        self.regs().txmode().write(|w| {
-            w.set_framing(regs::Framing::ISO14443A);
-            w.set_speed(regs::Speed::_106KBPS);
-        });
-        self.regs().rxmode().write(|w| {
-            w.set_framing(regs::Framing::ISO14443A);
-            w.set_speed(regs::Speed::_106KBPS);
-        });
-        self.regs().modwidth().write_value(0x26);
-        self.regs().gsn().write(|w| {
-            w.set_cwgsn(15);
-            w.set_modgsn(8);
-        });
-        self.regs().cwgsp().write(|w| {
-            w.set_cwgsp(31);
-        });
-
-        self.regs().control().write(|w| {
-            w.set_initiator(true);
-        });
-
-        self.regs().rfcfg().write(|w| {
-            w.set_rxgain(regs::Rxgain::_33DB);
-        });
-        self.regs().rxtreshold().write(|w| {
-            w.set_collevel(4);
-            w.set_minlevel(8);
-        });
-        self.regs().txauto().write(|w| {
-            w.set_force100ask(true);
         });
     }
 
@@ -363,167 +319,6 @@ where
         Ok(len)
     }
      */
-}
-
-impl<I: Interface, NpdPin, IrqPin> Reader for Fm175xx<I, NpdPin, IrqPin>
-where
-    NpdPin: OutputPin,
-    IrqPin: InputPin + Wait,
-    NpdPin::Error: Debug,
-    <IrqPin as InputPin>::Error: Debug,
-    <IrqPin as Wait>::Error: Debug,
-{
-    type Error = Error;
-
-    type TransceiveFuture<'a> = impl Future<Output = Result<TransceiveResult, Self::Error>>
-    where
-        Self: 'a;
-
-    fn transceive<'a>(&'a mut self, opts: TransceiveOptions<'a>) -> Self::TransceiveFuture<'a> {
-        async move {
-            // Disable CRC
-            self.regs().txmode().modify(|w| w.set_crcen(opts.crc));
-            self.regs().rxmode().modify(|w| w.set_crcen(opts.crc));
-
-            // SEt 1ms timeout
-            self.set_timer(opts.timeout_ms);
-
-            // Halt whatever currently running command.
-            self.regs().command().write(|w| {
-                w.set_command(regs::CommandVal::IDLE);
-            });
-
-            self.regs().waterlevel().write(|w| {
-                w.set_waterlevel(32);
-            });
-
-            // Clear all IRQs
-            self.regs().divirq().write_value(0x7f.into());
-            self.regs().commirq().write_value(0x7f.into());
-
-            self.clear_fifo();
-
-            // Start trx
-            self.regs().command().write(|w| {
-                w.set_command(regs::CommandVal::TRANSCEIVE);
-            });
-
-            // TODO chunk tx if it's bigger than 64 bytes (the fifo size)
-            self.iface.write_fifo(&opts.tx[..((opts.bits + 7) / 8)]);
-
-            self.regs().bitframing().write(|w| {
-                w.set_startsend(true);
-                w.set_txlastbits((opts.bits % 8) as u8);
-            });
-
-            let mut collision = false;
-
-            loop {
-                let mut irqs = self.regs().commirq().read();
-
-                if irqs.timeri() {
-                    trace!("irq: timeri");
-                    return Err(Error::Timeout);
-                }
-
-                if irqs.erri() {
-                    trace!("irq: ERR");
-                    let errs = self.regs().error().read();
-                    if errs.collerr() {
-                        debug!("err: collision");
-                        collision = true;
-                        //break;
-                    }
-                    if errs.bufferovfl() {
-                        debug!("err: buffer overflow ");
-                        return Err(Error::Other);
-                    }
-                    if errs.crcerr() {
-                        debug!("err: bad CRC");
-                        return Err(Error::Other);
-                    }
-                    //if errs.parityerr() && !collision {
-                    //    debug!("err: parity");
-                    //    return Err(Error::Other);
-                    //}
-                    if errs.proterr() {
-                        debug!("err: protocol");
-                        return Err(Error::Other);
-                    }
-                    if errs.rferr() {
-                        debug!("err: rf");
-                        return Err(Error::Other);
-                    }
-                    if errs.temperr() {
-                        debug!("err: temperature");
-                        return Err(Error::Other);
-                    }
-                    if errs.wrerr() {
-                        debug!("err: write access error??");
-                        return Err(Error::Other);
-                    }
-                }
-                //if irqs.hialerti() {
-                //    trace!("irq: hialerti");
-                //}
-                //if irqs.loalerti() {
-                //    trace!("irq: loalerti");
-                //}
-                if irqs.idlei() {
-                    trace!("irq: idle");
-                }
-                if irqs.rxi() {
-                    trace!("irq: rx done");
-                    break;
-                }
-                if irqs.txi() {
-                    trace!("irq: tx done");
-                }
-
-                irqs.set_set(false);
-                self.regs().commirq().write_value(irqs);
-            }
-
-            // TODO allow rxing more than 64bytes
-            let bytes = self.regs().fifolevel().read().level() as usize;
-            if bytes > opts.rx.len() {
-                warn!(
-                    "rx overflow! received {} bytes but buffer is only {} bytes",
-                    bytes,
-                    opts.rx.len()
-                );
-                return Err(Error::Other);
-            }
-
-            self.iface.read_fifo(&mut opts.rx[..bytes]);
-
-            let bits = if collision {
-                let coll = self.regs().coll().read();
-                if coll.collposnotvalid() {
-                    warn!("collision position out of range");
-                    return Err(Error::Other);
-                }
-
-                let mut collpos = coll.collpos() as usize;
-                if collpos == 0 {
-                    collpos = 32;
-                }
-                debug!("collision at: collpos={}", collpos);
-
-                // Collision at bit `i` means that bit is not valid, only `0..i-1` are.
-                // substract 1 because collpos is 1-based, not 0-based (why??)
-                collpos - 1
-            } else {
-                let mut last_bits = self.regs().control().read().rxbits() as usize;
-                if last_bits == 0 {
-                    last_bits = 8
-                }
-                bytes * 8 + last_bits - 8
-            };
-
-            Ok(TransceiveResult { bits, collision })
-        }
-    }
 }
 
 /// Find lowest value in min..max (min included, max excluded)

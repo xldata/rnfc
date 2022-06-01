@@ -1,79 +1,46 @@
-use core::fmt::Debug;
 use cortex_m::asm::delay;
-use embedded_hal::blocking::spi::{Transfer, Write};
-use embedded_hal::digital::v2::OutputPin;
+use embedded_hal::spi::blocking::{SpiBus, SpiBusWrite, SpiDevice};
 
 use super::Interface;
 
-pub struct SpiInterface<T, C>
+pub struct SpiInterface<T: SpiDevice>
 where
-    T: Transfer<u8> + Write<u8>,
-    C: OutputPin,
+    T::Bus: SpiBus,
 {
     spi: T,
-    cs: C,
 }
 
-impl<T, C> SpiInterface<T, C>
+impl<T: SpiDevice> SpiInterface<T>
 where
-    T: Transfer<u8> + Write<u8>,
-    C: OutputPin,
+    T::Bus: SpiBus,
 {
-    pub fn new(spi: T, cs: C) -> Self {
-        Self { spi, cs }
+    pub fn new(spi: T) -> Self {
+        Self { spi }
     }
 
-    fn read_reg_raw(&mut self, reg: u8) -> u8
-    where
-        <T as Write<u8>>::Error: Debug,
-        <T as Transfer<u8>>::Error: Debug,
-        C::Error: Debug,
-    {
-        delay(10_000);
-
-        self.cs.set_low().unwrap();
+    fn read_reg_raw(&mut self, reg: u8) -> u8 {
         delay(10_000);
 
         let mut buf = [0x80 | (reg << 1), 0x00];
-        self.spi.transfer(&mut buf).unwrap();
+        self.spi.transfer_in_place(&mut buf).unwrap();
         let res = buf[1];
-
-        delay(10_000);
-
-        self.cs.set_high().unwrap();
 
         //trace!("         read_raw {=u8:02x} = {=u8:02x}", reg, res);
         res
     }
 
-    fn write_reg_raw(&mut self, reg: u8, val: u8)
-    where
-        <T as Write<u8>>::Error: Debug,
-        <T as Transfer<u8>>::Error: Debug,
-        C::Error: Debug,
-    {
+    fn write_reg_raw(&mut self, reg: u8, val: u8) {
         //trace!("         write_raw {=u8:02x} = {=u8:02x}", reg, val);
-        delay(10_000);
-
-        self.cs.set_low().unwrap();
         delay(10_000);
 
         let buf = [(reg << 1), val];
         self.spi.write(&buf).unwrap();
-
-        delay(10_000);
-
-        self.cs.set_high().unwrap();
     }
 }
 
-impl<T, C> Interface for SpiInterface<T, C>
+impl<T: SpiDevice> Interface for SpiInterface<T>
 where
-    T: Transfer<u8> + Write<u8>,
-    <T as Write<u8>>::Error: Debug,
-    <T as Transfer<u8>>::Error: Debug,
-    C: OutputPin,
-    C::Error: Debug,
+    T::Bus: SpiBus,
 {
     fn read_reg(&mut self, reg: usize) -> u8 {
         let reg = reg as u8;
@@ -107,18 +74,21 @@ where
     }
 
     fn read_fifo(&mut self, data: &mut [u8]) {
-        delay(10_000);
-        self.cs.set_low().unwrap();
+        if data.len() == 0 {
+            return;
+        }
 
         delay(10_000);
 
-        self.spi.write(&[0x92]).unwrap();
-        data.fill(0x92);
-        data[data.len() - 1] = 0x80;
-        self.spi.transfer(data).unwrap();
-        delay(10_000);
-
-        self.cs.set_high().unwrap();
+        self.spi
+            .transaction(|bus| {
+                bus.write(&[0x92])?;
+                data.fill(0x92);
+                data[data.len() - 1] = 0x80;
+                bus.transfer_in_place(data)?;
+                Ok(())
+            })
+            .unwrap();
 
         trace!("     read_fifo {=[u8]:02x}", data);
     }
@@ -126,13 +96,13 @@ where
     fn write_fifo(&mut self, data: &[u8]) {
         trace!("     write_fifo {=[u8]:02x}", data);
         delay(10_000);
-        self.cs.set_low().unwrap();
-        delay(10_000);
 
-        self.spi.write(&[0x12]).unwrap();
-        self.spi.write(data).unwrap();
-        delay(10_000);
-
-        self.cs.set_high().unwrap();
+        self.spi
+            .transaction(|bus| {
+                bus.write(&[0x12])?;
+                bus.write(data)?;
+                Ok(())
+            })
+            .unwrap();
     }
 }
