@@ -59,12 +59,12 @@ impl<T> From<crate::Error<T>> for StartError<T> {
 }
 
 /// An ST25 chip enabled in Iso14443a mode.
-pub struct Iso14443a<'d, I: Interface> {
-    inner: &'d mut St25r39<I>,
+pub struct Iso14443a<'d, I: Interface, IrqPin: InputPin + Wait> {
+    inner: &'d mut St25r39<I, IrqPin>,
 }
 
-impl<I: Interface> St25r39<I> {
-    pub async fn start_iso14443a(&mut self) -> Result<Iso14443a<'_, I>, FieldOnError<I::Error>> {
+impl<I: Interface, IrqPin: InputPin + Wait> St25r39<I, IrqPin> {
+    pub async fn start_iso14443a(&mut self) -> Result<Iso14443a<'_, I, IrqPin>, FieldOnError<I::Error>> {
         self.mode_on().await?;
         match self.field_on().await {
             Ok(()) => {}
@@ -81,7 +81,7 @@ impl<I: Interface> St25r39<I> {
     }
 }
 
-impl<'d, I: Interface> Drop for Iso14443a<'d, I> {
+impl<'d, I: Interface, IrqPin: InputPin + Wait> Drop for Iso14443a<'d, I, IrqPin> {
     fn drop(&mut self) {
         if self.inner.mode_off().is_err() {
             warn!("Failed to set field off on Iso14443a drop");
@@ -89,7 +89,7 @@ impl<'d, I: Interface> Drop for Iso14443a<'d, I> {
     }
 }
 
-impl<'d, I: Interface + 'd> ll::Reader for Iso14443a<'d, I> {
+impl<'d, I: Interface + 'd, IrqPin: InputPin + Wait + 'd> ll::Reader for Iso14443a<'d, I, IrqPin> {
     type Error = Error<I::Error>;
 
     type TransceiveFuture<'a> = impl Future<Output = Result<usize, Self::Error>> + 'a where Self: 'a ;

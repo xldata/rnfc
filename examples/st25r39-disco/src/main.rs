@@ -12,7 +12,8 @@ use defmt_rtt as _; // global logger
 use embassy::executor::Spawner;
 use embassy::time::{Duration, Timer};
 use embassy_stm32::dma::NoDma;
-use embassy_stm32::gpio::{Input, Level, Output, Speed};
+use embassy_stm32::exti::ExtiInput;
+use embassy_stm32::gpio::{Input, Level, Output, Pull, Speed};
 use embassy_stm32::rcc::{self};
 use embassy_stm32::spi::{Config, Phase, Polarity, Spi};
 use embassy_stm32::time::Hertz;
@@ -22,7 +23,7 @@ use panic_probe as _;
 use rnfc::iso14443a::Poller;
 use rnfc::iso_dep::IsoDepA;
 use rnfc::traits::iso_dep::Reader;
-use rnfc_st25r39::{SpiInterface, St25r39};
+use rnfc_st25r39::{SpiInterface, St25r39, WakeupConfig, WakeupMethodConfig, WakeupPeriod, WakeupReference};
 
 use crate::device::ExclusiveDevice;
 
@@ -52,11 +53,9 @@ async fn main(_spawner: Spawner, p: Peripherals) {
     let cs = Output::new(p.PA4, Level::High, Speed::VeryHigh);
     let spi_device = ExclusiveDevice::new(spi_bus, cs);
     let iface = SpiInterface::new(spi_device);
-    let mut st = St25r39::new(iface).await.unwrap();
+    let irq = ExtiInput::new(Input::new(p.PE15, Pull::None), p.EXTI15);
+    let mut st = St25r39::new(iface, irq).await.unwrap();
 
-    let _irq = Input::new(p.PE15, embassy_stm32::gpio::Pull::None);
-
-    /*
     let config = WakeupConfig {
         period: WakeupPeriod::Ms500,
         capacitive: None,
@@ -67,12 +66,10 @@ async fn main(_spawner: Spawner, p: Peripherals) {
         }),
     };
 
-    st.mode_wakeup(config).await;
-
-    info!("Waiting for pin irq");
-    while irq.is_low() {}
-    info!("yay");
-     */
+    match st.wait_for_card(config).await {
+        Ok(()) => {}
+        Err(e) => warn!("wait for card failed: {:?}", e),
+    }
 
     /*
     let conf = AatConfig {
@@ -115,13 +112,13 @@ async fn main(_spawner: Spawner, p: Peripherals) {
     }
        */
 
-    loop {
+    'out: loop {
         Timer::after(Duration::from_millis(1000)).await;
 
         let iso14 = st.start_iso14443a().await.unwrap();
 
         let mut poller = Poller::new(iso14);
-        let cards = poller.poll::<8>().await.unwrap();
+        let cards = poller.search::<8>().await.unwrap();
         info!("found cards: {:02x}", cards);
 
         for uid in cards {
@@ -146,17 +143,18 @@ async fn main(_spawner: Spawner, p: Peripherals) {
             let mut rx = [0; 256];
             let tx = [0x90, 0x60, 0x00, 0x00, 0x00];
 
-            let n = match card.transceive(&tx, &mut rx).await {
-                Ok(x) => x,
-                Err(e) => {
-                    warn!("trx failed: {:?}", e);
-                    continue;
-                }
+            match card.transceive(&tx, &mut rx).await {
+                Ok(n) => info!("rxd: {:02x}", &rx[..n]),
+                Err(e) => warn!("trx failed: {:?}", e),
             };
 
-            card.deselect().await.unwrap();
-
-            info!("rxd: {:02x}", &rx[..n]);
+            match card.deselect().await {
+                Ok(()) => {}
+                Err(e) => {
+                    warn!("deselect failed: {:?}", e);
+                    continue 'out;
+                }
+            }
         }
     }
 }

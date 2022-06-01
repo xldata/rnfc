@@ -12,6 +12,8 @@ pub mod iso14443a;
 mod regs;
 
 pub use aat::AatConfig;
+use embedded_hal::digital::blocking::InputPin;
+use embedded_hal_async::digital::Wait;
 pub use interface::{I2cInterface, Interface, SpiInterface};
 
 use self::regs::Regs;
@@ -256,16 +258,18 @@ enum Mode {
     Wakeup,
 }
 
-pub struct St25r39<I: Interface> {
+pub struct St25r39<I: Interface, IrqPin: InputPin + Wait> {
     iface: I,
+    irq: IrqPin,
     irqs: u32,
     mode: Mode,
 }
 
-impl<I: Interface> St25r39<I> {
-    pub async fn new(iface: I) -> Result<Self, Error<I::Error>> {
+impl<I: Interface, IrqPin: InputPin + Wait> St25r39<I, IrqPin> {
+    pub async fn new(iface: I, irq: IrqPin) -> Result<Self, Error<I::Error>> {
         let mut this = Self {
             iface,
+            irq,
             irqs: 0,
             mode: Mode::On,
         };
@@ -439,7 +443,7 @@ impl<I: Interface> St25r39<I> {
 
     /// Change into wakeup mode, return immediately.
     /// The IRQ pin will go high on wakeup.
-    pub async fn mode_wakeup(&mut self, config: WakeupConfig) -> Result<(), Error<I::Error>> {
+    pub async fn wait_for_card(&mut self, config: WakeupConfig) -> Result<(), Error<I::Error>> {
         self.mode_on().await?;
 
         self.mode = Mode::Wakeup;
@@ -538,7 +542,10 @@ impl<I: Interface> St25r39<I> {
         self.regs().wup_timer_control().write_value(wtc)?;
         self.regs().op_control().write(|w| w.set_wu(true))?;
         self.irq_set_mask(!irqs)?;
-        debug!("Entered wakeup mode");
+
+        debug!("Entered wakeup mode, waiting for pin IRQ");
+        self.irq.wait_for_high().await.unwrap();
+        debug!("got pin IRQ!");
 
         Ok(())
     }
@@ -666,16 +673,16 @@ impl<I: Interface> St25r39<I> {
         Ok(())
     }
 
-    pub fn raw(&mut self) -> Raw<'_, I> {
+    pub fn raw(&mut self) -> Raw<'_, I, IrqPin> {
         Raw { inner: self }
     }
 }
 
-pub struct Raw<'a, I: Interface> {
-    inner: &'a mut St25r39<I>,
+pub struct Raw<'a, I: Interface, IrqPin: InputPin + Wait> {
+    inner: &'a mut St25r39<I, IrqPin>,
 }
 
-impl<'a, I: Interface> Raw<'a, I> {
+impl<'a, I: Interface, IrqPin: InputPin + Wait> Raw<'a, I, IrqPin> {
     pub async fn field_on(&mut self) -> Result<(), FieldOnError<I::Error>> {
         self.inner.mode_on().await?;
         self.inner.field_on().await?;

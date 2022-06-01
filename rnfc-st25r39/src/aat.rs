@@ -1,4 +1,6 @@
 use embassy::time::{Duration, Timer};
+use embedded_hal::digital::blocking::InputPin;
+use embedded_hal_async::digital::Wait;
 
 use crate::{Error, Interface, St25r39};
 
@@ -17,7 +19,7 @@ pub struct AatConfig {
     pub amp_weight: u8,
 }
 
-impl<I: Interface> St25r39<I> {
+impl<I: Interface, IrqPin: InputPin + Wait> St25r39<I, IrqPin> {
     pub async fn aat(&mut self, conf: AatConfig) -> Result<(), Error<I::Error>> {
         let mut a = conf.a_start;
         let mut b = conf.b_start;
