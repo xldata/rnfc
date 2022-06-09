@@ -401,8 +401,11 @@ impl<I: Interface, IrqPin: InputPin + Wait> St25r39<I, IrqPin> {
     }
 
     pub async fn calibrate_capacitance(&mut self) -> Result<u8, Error<I::Error>> {
-        // Clear Manual calibration values to enable automatic calibration mode
-        self.regs().cap_sensor_control().write(|_| {})?;
+        self.regs().cap_sensor_control().write(|w| {
+            // Clear Manual calibration values to enable automatic calibration mode
+            w.set_cs_mcal(0);
+            w.set_cs_g(0b01); // 6.5v/pF, highest one
+        })?;
 
         // Don't use `cmd_wait`, the irq only fires in Ready mode (op_control.en = 1).
         // Instead, wait for cap_sensor_result.cs_cal_end
