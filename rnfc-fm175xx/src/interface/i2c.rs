@@ -15,17 +15,23 @@ impl<T: I2c> I2cInterface<T> {
 
 impl<T: I2c> Interface for I2cInterface<T> {
     fn read_reg(&mut self, reg: usize) -> u8 {
+        let reg = reg as u8;
         let mut buf = [0; 1];
-        self.i2c.write_read(self.address, &[reg as u8], &mut buf).unwrap();
-        buf[0]
+        self.i2c.write_read(self.address, &[reg], &mut buf).unwrap();
+        let res = buf[0];
+        trace!("     read {=u8:02x} = {=u8:02x}", reg, res);
+        res
     }
 
     fn write_reg(&mut self, reg: usize, val: u8) {
+        let reg = reg as u8;
+        trace!("     write {=u8:02x} = {=u8:02x}", reg, val);
         self.i2c.write(self.address, &[reg as u8, val]).unwrap();
     }
 
     fn read_fifo(&mut self, data: &mut [u8]) {
         self.i2c.write_read(self.address, &[0x09], data).unwrap();
+        trace!("     read_fifo {=[u8]:02x}", data);
     }
 
     fn write_fifo(&mut self, data: &[u8]) {
@@ -33,5 +39,6 @@ impl<T: I2c> Interface for I2cInterface<T> {
         buf[0] = 0x09;
         buf[1..1 + data.len()].copy_from_slice(data);
         self.i2c.write(self.address, &buf[..1 + data.len()]).unwrap();
+        trace!("     write_fifo {=[u8]:02x}", data);
     }
 }
