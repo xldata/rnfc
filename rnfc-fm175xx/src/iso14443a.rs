@@ -22,12 +22,16 @@ impl ll::Error for Error {
     }
 }
 
+pub struct Iso14443a<'a, I: Interface, NpdPin, IrqPin> {
+    inner: &'a mut Fm175xx<I, NpdPin, IrqPin>,
+}
+
 impl<I: Interface, NpdPin, IrqPin> Fm175xx<I, NpdPin, IrqPin>
 where
     NpdPin: OutputPin,
     IrqPin: InputPin + Wait,
 {
-    pub async fn init_iso14443a(&mut self) {
+    pub async fn start_iso14443a(&mut self) -> Result<Iso14443a<I, NpdPin, IrqPin>, Error> {
         self.npd.set_high().unwrap();
         Timer::after(Duration::from_millis(10)).await;
 
@@ -70,13 +74,16 @@ where
         self.regs().txauto().write(|w| {
             w.set_force100ask(true);
         });
+
+        Ok(Iso14443a { inner: self })
     }
 }
 
-impl<I: Interface, NpdPin, IrqPin> ll::Reader for Fm175xx<I, NpdPin, IrqPin>
+impl<'d, I, NpdPin, IrqPin> ll::Reader for Iso14443a<'d, I, NpdPin, IrqPin>
 where
-    NpdPin: OutputPin,
-    IrqPin: InputPin + Wait,
+    I: Interface + 'd,
+    NpdPin: OutputPin + 'd,
+    IrqPin: InputPin + Wait + 'd,
 {
     type Error = Error;
 
@@ -88,6 +95,8 @@ where
         async move {
             debug!("TX: {:?} {:02x}", opts, tx);
 
+            let r = &mut *self.inner;
+
             let (tx, crc, timeout_ms, lastbits, rxalign) = match opts {
                 ll::Frame::Anticoll { bits } => (&tx[..(bits + 7) / 8], false, 1, (bits % 8) as u8, (bits % 8) as u8),
                 ll::Frame::ReqA => (&[0x26][..], false, 1, 7, 0),
@@ -96,40 +105,40 @@ where
             };
 
             // Disable CRC
-            self.regs().txmode().modify(|w| w.set_crcen(crc));
-            self.regs().rxmode().modify(|w| w.set_crcen(crc));
+            r.regs().txmode().modify(|w| w.set_crcen(crc));
+            r.regs().rxmode().modify(|w| w.set_crcen(crc));
 
             // SEt timeout
-            self.set_timer(timeout_ms);
+            r.set_timer(timeout_ms);
 
             // Halt whatever currently running command.
-            self.regs().command().write(|w| {
+            r.regs().command().write(|w| {
                 w.set_command(regs::CommandVal::IDLE);
             });
 
-            self.regs().waterlevel().write(|w| {
+            r.regs().waterlevel().write(|w| {
                 w.set_waterlevel(32);
             });
 
             // Clear all IRQs
-            self.regs().divirq().write_value(0x7f.into());
-            self.regs().commirq().write_value(0x7f.into());
+            r.regs().divirq().write_value(0x7f.into());
+            r.regs().commirq().write_value(0x7f.into());
 
-            self.clear_fifo();
+            r.clear_fifo();
 
-            self.regs().coll().write(|w| {
+            r.regs().coll().write(|w| {
                 w.set_valuesaftercoll(!matches!(opts, ll::Frame::Anticoll { .. }));
             });
 
             // Start trx
-            self.regs().command().write(|w| {
+            r.regs().command().write(|w| {
                 w.set_command(regs::CommandVal::TRANSCEIVE);
             });
 
             // TODO chunk tx if it's bigger than 64 bytes (the fifo size)
-            self.iface.write_fifo(&tx);
+            r.iface.write_fifo(&tx);
 
-            self.regs().bitframing().write(|w| {
+            r.regs().bitframing().write(|w| {
                 w.set_startsend(true);
                 w.set_rxalign(rxalign);
                 w.set_txlastbits(lastbits);
@@ -138,7 +147,7 @@ where
             let mut collision = false;
 
             loop {
-                let mut irqs = self.regs().commirq().read();
+                let mut irqs = r.regs().commirq().read();
 
                 if irqs.timeri() {
                     trace!("irq: timeri");
@@ -147,7 +156,7 @@ where
 
                 if irqs.erri() {
                     trace!("irq: ERR");
-                    let errs = self.regs().error().read();
+                    let errs = r.regs().error().read();
                     if errs.collerr() {
                         debug!("err: collision");
                         collision = true;
@@ -200,11 +209,11 @@ where
                 }
 
                 irqs.set_set(false);
-                self.regs().commirq().write_value(irqs);
+                r.regs().commirq().write_value(irqs);
             }
 
             // TODO allow rxing more than 64bytes
-            let bytes = self.regs().fifolevel().read().level() as usize;
+            let bytes = r.regs().fifolevel().read().level() as usize;
             if bytes > rx.len() {
                 warn!("rx overflow! received {} bytes but buffer is only {} bytes", bytes, rx.len());
                 return Err(Error::Other);
@@ -213,7 +222,7 @@ where
             if let ll::Frame::Anticoll { bits } = opts {
                 rx.fill(0);
                 rx[..bits / 8].copy_from_slice(&tx[..bits / 8]);
-                self.iface.read_fifo(&mut rx[bits / 8..][..bytes]);
+                r.iface.read_fifo(&mut rx[bits / 8..][..bytes]);
                 if bits % 8 != 0 {
                     let byte_part = tx[bits / 8];
                     let mask = 1u8 << (bits % 8) - 1;
@@ -226,7 +235,7 @@ where
                 // Collision at bit `i` means that bit is not valid, only `0..i-1` are.
                 // substract 1 because collpos is 1-based, not 0-based (why??)
                 let total_bits = if collision {
-                    let coll = self.regs().coll().read();
+                    let coll = r.regs().coll().read();
                     if coll.collposnotvalid() {
                         warn!("collision position out of range");
                         return Err(Error::Other);
@@ -247,7 +256,7 @@ where
                 Ok(total_bits)
             } else {
                 // TODO: error on collision if not anticollision frame.
-                self.iface.read_fifo(&mut rx[..bytes]);
+                r.iface.read_fifo(&mut rx[..bytes]);
                 debug!("RX: {:02x}", &rx[..bytes]);
                 Ok(bytes * 8)
             }
