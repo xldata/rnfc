@@ -267,6 +267,7 @@ where
         self.npd.set_low().unwrap();
         Timer::after(Duration::from_millis(10)).await;
         self.npd.set_high().unwrap();
+        Timer::after(Duration::from_millis(10)).await;
 
         debug!("softreset");
         self.regs().command().write(|w| w.set_command(regs::CommandVal::SOFTRESET));
