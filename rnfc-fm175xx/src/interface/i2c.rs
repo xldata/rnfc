@@ -55,11 +55,19 @@ impl<T: I2c> Interface for I2cInterface<T> {
     }
 
     fn read_fifo(&mut self, data: &mut [u8]) {
+        if data.len() == 0 {
+            return;
+        }
+
         self.i2c.write_read(self.address, &[0x09], data).unwrap();
         trace!("     read_fifo {=[u8]:02x}", data);
     }
 
     fn write_fifo(&mut self, data: &[u8]) {
+        if data.len() == 0 {
+            return;
+        }
+
         let mut buf = [0; 65];
         buf[0] = 0x09;
         buf[1..1 + data.len()].copy_from_slice(data);
