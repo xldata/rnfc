@@ -9,6 +9,8 @@ mod interface;
 pub mod iso14443a;
 mod regs;
 
+use core::convert::Infallible;
+
 use cortex_m::asm::delay;
 use embassy::time::{Duration, Timer};
 use embedded_hal::digital::blocking::{InputPin, OutputPin};
@@ -17,10 +19,18 @@ use regs::Regs;
 
 pub use interface::*;
 
-pub struct LpcdConfig {
-    pub t1cfg: u8,
-    pub t2cfg: u8,
-    pub t3cfg: u8,
+pub struct WakeupConfig {
+    /// sleep time. 1-15. Tsleep = (t1 + 2) * 100ms
+    pub t1: u8,
+    /// mesaure prepare time? 2-31
+    pub t2: u8,
+    /// measure time. 2-31
+    pub t3: u8,
+
+    // NMOS carrier wave drive strength. 0..=1
+    pub n_drive: u8,
+    // PMOS carrier wave drive strength. 0..=7
+    pub p_drive: u8,
 }
 
 const ADC_REFERENCE_MIN: u8 = 0;
@@ -69,7 +79,13 @@ where
         });
     }
 
-    pub async fn lpcd(&mut self) {
+    pub async fn wait_for_card(&mut self, config: WakeupConfig) -> Result<(), Infallible> {
+        assert!((1..=15).contains(&config.t1));
+        assert!((2..=31).contains(&config.t2));
+        assert!((2..=31).contains(&config.t3));
+        assert!((0..=1).contains(&config.n_drive));
+        assert!((0..=7).contains(&config.p_drive));
+
         self.regs().command().write(|_| {});
         self.regs().commien().write(|w| w.set_irqinv(true));
         self.regs().divien().write(|w| w.set_irqpushpull(true));
@@ -96,23 +112,18 @@ where
         self.regs().lpcd_ctrl1().write(|w| {
             w.set_bit_ctrl_set(true);
             w.set_ie(true);
+            w.set_sense_1(true);
         });
 
         self.regs().lpcd_ctrl2().write(|w| {
             w.set_tx2en(true);
-            w.set_cwn(true);
-            w.set_cwp(0b011);
+            w.set_cwn(config.n_drive == 1);
+            w.set_cwp(config.p_drive);
         });
 
         self.regs().lpcd_ctrl3().write(|w| w.set_hpden(false));
 
-        let config = LpcdConfig {
-            t1cfg: 1,  // 1-15. Tsleep = (t1cfg+2) * 100ms
-            t2cfg: 13, // 2-31
-            t3cfg: 11, // 2-31
-        };
-
-        let (t3clkdiv, adc_shift) = match config.t3cfg {
+        let (t3clkdiv, adc_shift) = match config.t3 {
             16.. => (regs::LpcdT3clkdivk::DIV16, 3),
             8.. => (regs::LpcdT3clkdivk::DIV8, 4),
             0.. => (regs::LpcdT3clkdivk::DIV4, 5),
@@ -120,23 +131,23 @@ where
 
         let threshold: u8 = 34;
 
-        let adc_range = (config.t3cfg - 1) << adc_shift;
+        let adc_range = (config.t3 - 1) << adc_shift;
         let adc_center = adc_range / 2;
         let threshold_offs = ((adc_range as u32) * (threshold as u32) / 256) as u8;
         let threshold_min = adc_center.saturating_sub(threshold_offs);
         let threshold_max = adc_center.saturating_add(threshold_offs);
 
-        info!(
+        debug!(
             "adc: range={} center={} threshold_offs={} threshold_min={} threshold_max={}",
             adc_range, adc_center, threshold_offs, threshold_min, threshold_max
         );
 
         self.regs().lpcd_t1cfg().write(|w| {
-            w.set_t1cfg(config.t1cfg);
+            w.set_t1cfg(config.t1);
             w.set_t3clkdivk(t3clkdiv);
         });
-        self.regs().lpcd_t2cfg().write(|w| w.set_t2cfg(config.t2cfg));
-        self.regs().lpcd_t3cfg().write(|w| w.set_t3cfg(config.t3cfg));
+        self.regs().lpcd_t2cfg().write(|w| w.set_t2cfg(config.t2));
+        self.regs().lpcd_t3cfg().write(|w| w.set_t3cfg(config.t3));
         self.regs().lpcd_vmid_bd_cfg().write(|w| w.set_vmid_bd_cfg(8));
         self.regs().lpcd_auto_wup_cfg().write(|w| w.set_en(false));
         self.regs().lpcd_threshold_min_l().write_value(threshold_min & 0x3F);
@@ -157,23 +168,31 @@ where
         ];
         let level = binary_search(0, levels.len(), |val| {
             self.regs().lpcd_ctrl4().write_value(levels[val].into());
-            self.lpcd_read_adc() < adc_center
+            let meas = self.lpcd_read_adc();
+            let res = meas < adc_center;
+            debug!("adc search level: {} => {} {}", val, meas, res);
+            res
         });
         let level = match level {
             Some(x) => x,
             None => panic!("Gain calibration failed."),
         };
+        debug!("adc level {}", level);
         self.regs().lpcd_ctrl4().write_value(levels[level].into());
 
         // Second, find lowest reference voltage that satisfies "reading < center".
         let reference = binary_search(ADC_REFERENCE_MIN as _, ADC_REFERENCE_MAX as _, |val| {
             self.lpcd_set_adc_config(val as _, 0);
-            self.lpcd_read_adc() < adc_center
+            let meas = self.lpcd_read_adc();
+            let res = meas < adc_center;
+            debug!("adc search refer: {} => {} {}", val, meas, res);
+            res
         });
         let reference = match reference {
             Some(x) => x as u8,
             None => panic!("Reference voltage calibration failed."),
         };
+        debug!("adc refer {}", reference);
         self.lpcd_set_adc_config(reference, 0);
 
         /*
@@ -195,6 +214,8 @@ where
         info!("Waiting for irq...");
         self.irq.wait_for_low().await.unwrap();
         info!("Got irq!!");
+
+        Ok(())
     }
 
     fn lpcd_set_adc_config(&mut self, reference: u8, bias_current: u8) {
