@@ -1,5 +1,6 @@
 use core::future::Future;
 use embassy::time::{Duration, Timer};
+use embassy::util::yield_now;
 use embedded_hal::digital::blocking::{InputPin, OutputPin};
 use embedded_hal_async::digital::Wait;
 use rnfc_traits::iso14443a_ll as ll;
@@ -145,7 +146,19 @@ where
             });
 
             let mut collision = false;
+            let mut rx_pos = 0;
+            let mut read_fifo = |r: &mut Fm175xx<I, NpdPin, IrqPin>| {
+                let bytes = r.regs().fifolevel().read().level() as usize;
+                if rx_pos + bytes > rx.len() {
+                    warn!("rx overflow! received {} but buffer is only {}", rx_pos + bytes, rx.len());
+                    return Err(Error::Other);
+                }
+                r.iface.read_fifo(&mut rx[rx_pos..][..bytes]);
+                rx_pos += bytes;
+                Ok(())
+            };
 
+            let mut tx_done = false;
             loop {
                 let mut irqs = r.regs().commirq().read();
 
@@ -163,37 +176,38 @@ where
                         //break;
                     }
                     if errs.bufferovfl() {
-                        debug!("err: buffer overflow ");
+                        warn!("err: buffer overflow");
                         return Err(Error::Other);
                     }
                     if errs.crcerr() {
-                        debug!("err: bad CRC");
+                        warn!("err: bad CRC");
                         return Err(Error::Other);
                     }
                     //if errs.parityerr() && !collision {
-                    //    debug!("err: parity");
+                    //    warn!("err: parity");
                     //    return Err(Error::Other);
                     //}
                     if errs.proterr() {
-                        debug!("err: protocol");
+                        warn!("err: protocol");
                         return Err(Error::Other);
                     }
                     if errs.rferr() {
-                        debug!("err: rf");
+                        warn!("err: rf");
                         return Err(Error::Other);
                     }
                     if errs.temperr() {
-                        debug!("err: temperature");
+                        warn!("err: temperature");
                         return Err(Error::Other);
                     }
                     if errs.wrerr() {
-                        debug!("err: write access error??");
+                        warn!("err: write access error??");
                         return Err(Error::Other);
                     }
                 }
-                //if irqs.hialerti() {
-                //    trace!("irq: hialerti");
-                //}
+                if tx_done && irqs.hialerti() {
+                    trace!("irq: hialerti");
+                    read_fifo(r)?;
+                }
                 //if irqs.loalerti() {
                 //    trace!("irq: loalerti");
                 //}
@@ -206,23 +220,23 @@ where
                 }
                 if irqs.txi() {
                     trace!("irq: tx done");
+                    tx_done = true;
                 }
 
                 irqs.set_set(false);
                 r.regs().commirq().write_value(irqs);
+                yield_now().await;
             }
 
-            // TODO allow rxing more than 64bytes
-            let bytes = r.regs().fifolevel().read().level() as usize;
-            if bytes > rx.len() {
-                warn!("rx overflow! received {} bytes but buffer is only {} bytes", bytes, rx.len());
-                return Err(Error::Other);
-            }
+            read_fifo(r)?;
 
             if let ll::Frame::Anticoll { bits } = opts {
-                rx.fill(0);
-                rx[..bits / 8].copy_from_slice(&tx[..bits / 8]);
-                r.iface.read_fifo(&mut rx[bits / 8..][..bytes]);
+                let shift = bits / 8;
+                rx[rx_pos + shift..].fill(0);
+                for i in (0..rx_pos).rev() {
+                    rx[i + shift] = rx[i];
+                }
+                rx[..shift].copy_from_slice(&tx[..shift]);
                 if bits % 8 != 0 {
                     let byte_part = tx[bits / 8];
                     let mask = 1u8 << (bits % 8) - 1;
@@ -248,7 +262,7 @@ where
                     debug!("collision at: collpos={}", collpos);
                     bits + collpos - 1
                 } else {
-                    bits / 8 * 8 + bytes * 8
+                    bits / 8 * 8 + rx_pos * 8
                 };
 
                 debug!("RX: {:02x} bits: {}", rx, total_bits);
@@ -256,9 +270,8 @@ where
                 Ok(total_bits)
             } else {
                 // TODO: error on collision if not anticollision frame.
-                r.iface.read_fifo(&mut rx[..bytes]);
-                debug!("RX: {:02x}", &rx[..bytes]);
-                Ok(bytes * 8)
+                debug!("RX: {:02x}", &rx[..rx_pos]);
+                Ok(rx_pos * 8)
             }
         }
     }
