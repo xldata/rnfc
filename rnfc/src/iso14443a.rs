@@ -55,7 +55,7 @@ impl<T: LLReader> Poller<T> {
             .await
             .map_err(Error::Lower)?;
         if bits != 16 {
-            warn!("WUPA response wrong length: {} bits", bits);
+            debug!("WUPA response wrong length: {} bits", bits);
             return Err(Error::Protocol);
         }
         Ok(rx)
@@ -70,7 +70,7 @@ impl<T: LLReader> Poller<T> {
             .await
             .map_err(Error::Lower)?;
         if bits != 16 {
-            warn!("REQA response wrong length: {} bits", bits);
+            debug!("REQA response wrong length: {} bits", bits);
             return Err(Error::Protocol);
         }
         Ok(rx)
@@ -92,11 +92,11 @@ impl<T: LLReader> Poller<T> {
         // If first bit is a collision, we haven't learned any new on the UID.
         // Treat it as a communication error to prevent infinite loops.
         if got_bits as u8 == bits {
-            warn!("anticoll: got zero new bits");
+            debug!("anticoll: got zero new bits");
             return Err(Error::Protocol);
         }
         if got_bits < 16 {
-            warn!("collision too early?");
+            debug!("collision too early?");
             return Err(Error::Protocol);
         }
 
@@ -113,13 +113,13 @@ impl<T: LLReader> Poller<T> {
         // If we have 32..39, it means a collision occured during the BCC bit which should be impossible.
         // If we have more than 40, it means the card is responding with too many bits.
         if new_uid_bits != 40 {
-            warn!("anticoll: got bad new_uid_bits {}", new_uid_bits);
+            debug!("anticoll: got bad new_uid_bits {}", new_uid_bits);
             return Err(Error::Protocol);
         }
 
         let bcc = uid[0] ^ uid[1] ^ uid[2] ^ uid[3];
         if bcc as u8 != rx[6] {
-            warn!("bad BCC");
+            debug!("bad BCC");
             return Err(Error::Protocol);
         }
 
@@ -138,7 +138,7 @@ impl<T: LLReader> Poller<T> {
         let opts = Frame::Standard { timeout_ms: 1 };
         let bits = self.reader.transceive(&tx, &mut rx, opts).await.map_err(Error::Lower)?;
         if bits != 8 {
-            warn!("SELECT response wrong lengt: {} bits", bits);
+            debug!("SELECT response wrong length: {} bits", bits);
             return Err(Error::Protocol);
         }
         Ok(rx[0])
@@ -160,7 +160,7 @@ impl<T: LLReader> Poller<T> {
 
         for cl in 0..4 {
             if cl == 3 {
-                warn!("too many cascade levels");
+                debug!("too many cascade levels");
                 return Err(Error::Protocol);
             }
 
@@ -204,7 +204,7 @@ impl<T: LLReader> Poller<T> {
             7 => 2,
             10 => 3,
             x => {
-                warn!("Invalid UID length {}", x);
+                debug!("Invalid UID length {}", x);
                 return Err(Error::Protocol);
             }
         };
@@ -246,7 +246,7 @@ impl<T: LLReader> Poller<T> {
 
             for cl in 0..4 {
                 if cl == 3 {
-                    warn!("too many cascade levels");
+                    debug!("too many cascade levels");
                     return Err(Error::Protocol);
                 }
 
@@ -278,7 +278,7 @@ impl<T: LLReader> Poller<T> {
                 }
             }
 
-            warn!("Got card! uid={:02x} atqa={:02x} sak={:02x}", uid, atqa, sak);
+            debug!("Got card! uid={:02x} atqa={:02x} sak={:02x}", uid, atqa, sak);
             let _ = self.transceive_hlta().await;
 
             if !res.contains(&uid) {
