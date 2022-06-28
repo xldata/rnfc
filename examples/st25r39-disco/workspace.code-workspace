@@ -6,17 +6,17 @@
     ],
     "settings": {
         "rust-analyzer.cargo.allFeatures": false,
-        "rust-analyzer.cargo.runBuildScripts": true,
         "rust-analyzer.checkOnSave.allFeatures": false,
         "rust-analyzer.checkOnSave.allTargets": false,
-        "rust-analyzer.experimental.procAttrMacros": false,
         "rust-analyzer.procMacro.enable": true,
-        "rust-analyzer.assist.importGranularity": "module",
-        "rust-analyzer.assist.importEnforceGranularity": true,
         "rust-analyzer.cargo.target": "thumbv7em-none-eabi",
         "rust-analyzer.cargo.features": [],
         "rust-analyzer.linkedProjects": [
             "examples/st25r39-disco/Cargo.toml",
         ],
+        "rust-analyzer.imports.granularity.enforce": true,
+        "rust-analyzer.imports.granularity.group": "module",
+        "rust-analyzer.cargo.buildScripts.enable": true,
+        "rust-analyzer.procMacro.attributes.enable": false,
     }
 }
