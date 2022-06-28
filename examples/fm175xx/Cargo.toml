@@ -12,7 +12,7 @@ rnfc = { path = "../../rnfc", features=["defmt"]}
 rnfc-traits = { path = "../../rnfc-traits", features=["defmt"]}
 rnfc-fm175xx = { path = "../../rnfc-fm175xx", features=["defmt"]}
 embassy = { version = "0.1.0", features = ["defmt", "nightly", "unstable-traits"] }
-embassy-nrf = { version = "0.1.0", features = ["defmt", "nightly", "unstable-traits", "unstable-pac", "nrf52832", "time-driver-rtc1", "gpiote"] }
+embassy-nrf = { version = "0.1.0", features = ["defmt", "nightly", "unstable-traits", "unstable-pac", "nrf52840", "time-driver-rtc1", "gpiote"] }
 
 defmt = { version = "0.3", optional = true }
 log = { version = "0.4.14", optional = true }
@@ -28,13 +28,12 @@ embedded-hal = { version = "1.0.0-alpha.8" }
 embedded-hal-async = { version = "0.1.0-alpha.1" }
 
 [patch.crates-io]
-defmt = { git = "https://github.com/knurling-rs/defmt/" }
-#embassy = { git = "https://github.com/embassy-rs/embassy" }
-#embassy-nrf = { git = "https://github.com/embassy-rs/embassy" }
-#embassy-macros = { git = "https://github.com/embassy-rs/embassy" }
-embassy = { path = "/home/dirbaio/embassy/embassy/embassy" }
-embassy-nrf = { path = "/home/dirbaio/embassy/embassy/embassy-nrf" }
-embassy-macros = { path = "/home/dirbaio/embassy/embassy/embassy-macros" }
+embassy = { git = "https://github.com/embassy-rs/embassy" }
+embassy-nrf = { git = "https://github.com/embassy-rs/embassy" }
+embassy-macros = { git = "https://github.com/embassy-rs/embassy" }
+#embassy = { path = "/home/dirbaio/embassy/embassy/embassy" }
+#embassy-nrf = { path = "/home/dirbaio/embassy/embassy/embassy-nrf" }
+#embassy-macros = { path = "/home/dirbaio/embassy/embassy/embassy-macros" }
 
 [profile.dev]
 debug = 2

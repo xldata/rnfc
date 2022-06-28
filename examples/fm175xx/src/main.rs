@@ -9,11 +9,10 @@ use core::fmt::Debug;
 use cortex_m::asm::delay;
 use defmt_rtt as _;
 use embassy::executor::Spawner;
-use embassy::time::{Duration, Timer};
+
 use embassy_nrf::config::LfclkSource;
-use embassy_nrf::gpio::{AnyPin, Input, Level, Output, OutputDrive, Pin, Pull};
+use embassy_nrf::gpio::{Flex, Input, Level, Output, OutputDrive, Pull};
 use embassy_nrf::pac;
-use embassy_nrf::spim::{Config, Frequency, Spim};
 use embassy_nrf::twim::{self, Twim};
 use embassy_nrf::{interrupt, Peripherals};
 use embedded_hal::digital::blocking::OutputPin;
@@ -22,19 +21,8 @@ use embedded_hal::spi::{Error, ErrorKind, ErrorType};
 use panic_probe as _;
 use rnfc::iso14443a::Poller;
 use rnfc::iso_dep::IsoDepA;
-use rnfc_fm175xx::{Fm175xx, SpiInterface};
+use rnfc_fm175xx::{Fm175xx, I2cInterface, WakeupConfig};
 use rnfc_traits::iso_dep::Reader;
-
-#[embassy::task]
-async fn watchdog_task(pin: AnyPin) {
-    let mut out = Output::new(pin, Level::Low, OutputDrive::Standard);
-    loop {
-        out.set_high();
-        delay(100);
-        out.set_low();
-        Timer::after(Duration::from_millis(800)).await;
-    }
-}
 
 fn config() -> embassy_nrf::config::Config {
     let mut config = embassy_nrf::config::Config::default();
@@ -44,7 +32,7 @@ fn config() -> embassy_nrf::config::Config {
 }
 
 #[embassy::main(config = "config()")]
-async fn main(spawner: Spawner, p: Peripherals) {
+async fn main(_spawner: Spawner, p: Peripherals) {
     unsafe {
         let nvmc = &*pac::NVMC::ptr();
         let power = &*pac::POWER::ptr();
@@ -83,72 +71,94 @@ async fn main(spawner: Spawner, p: Peripherals) {
         nvmc.icachecnf.write(|w| w.cacheen().enabled());
     }
 
-    spawner.spawn(watchdog_task(p.P0_04.degrade())).unwrap();
+    let npd = p.P0_15;
+    let mut scl = p.P0_20;
+    let mut sda = p.P0_22;
+    let irq = p.P0_24;
 
-    let _led_red = Output::new(p.P0_22, Level::High, OutputDrive::Standard);
-    let _led_green = Output::new(p.P0_23, Level::High, OutputDrive::Standard);
-    let _buzzer = Output::new(p.P0_06, Level::High, OutputDrive::Standard);
+    let npd = Output::new(npd, Level::High, OutputDrive::Standard);
+    let irq = Input::new(irq, Pull::None);
 
     {
-        let sda = p.P0_10;
-        let scl = p.P0_09;
-        let config = twim::Config::default();
-        let _i2c = Twim::new(
-            p.TWISPI0,
-            interrupt::take!(SPIM0_SPIS0_TWIM0_TWIS0_SPI0_TWI0),
-            sda,
-            scl,
-            config,
-        );
+        // Try to unstick the i2c bus if it's stuck.
+        let mut scl = Flex::new(&mut scl);
+        scl.set_high();
+        scl.set_as_input_output(Pull::None, OutputDrive::HighDrive0Disconnect1);
+        let mut sda = Flex::new(&mut sda);
+        sda.set_high();
+        sda.set_as_input_output(Pull::None, OutputDrive::HighDrive0Disconnect1);
 
-        // IMU (not mounted)
-        //let mut rx = [0; 1];
-        //i2c.write_read(0x68, &[0x75], &mut rx).await.unwrap();
-        //info!("rxd: {:02x}", &rx);
+        if sda.is_low() {
+            warn!("SDA stuck low.")
+        }
+        if scl.is_low() {
+            warn!("SCL stuck low.")
+        }
 
-        // EEPROM
-        //let mut rx = [0; 1];
-        //i2c.write_read(0x50, &[0x75], &mut rx).await.unwrap();
-        //info!("rxd: {:02x}", &rx);
+        info!("wiggling SCL...");
+        for _ in 0..12 {
+            scl.set_low();
+            cortex_m::asm::delay(64_000_000 / 100_000 / 2);
+            scl.set_high();
+            cortex_m::asm::delay(64_000_000 / 100_000 / 2);
 
-        // RTC
-        //let mut rx = [0; 16];
-        //i2c.write_read(0x51, &[0x00, 0x00], &mut rx).await.unwrap();
-        //info!("rxd: {:02x}", &rx);
+            if scl.is_low() {
+                warn!("SCL still low while clocking it.")
+            }
+        }
 
-        // SCAN
-        //Timer::after(Duration::from_secs(1)).await;
-        //for addr in 0..=127 {
-        //    if i2c.write(addr, &[0x00]).await.is_ok() {
-        //        info!("addr: {:02x}", addr);
-        //    }
-        //}
-        //info!("SCAN DONE");
+        if sda.is_low() {
+            warn!("SDA still stuck low.")
+        }
+        if scl.is_low() {
+            warn!("SCL still stuck low.")
+        }
+
+        info!("doing start+stop");
+        cortex_m::asm::delay(64_000_000 / 100_000 / 2);
+        sda.set_low();
+        cortex_m::asm::delay(64_000_000 / 100_000 / 2);
+        sda.set_high();
+        cortex_m::asm::delay(64_000_000 / 100_000 / 2);
+
+        if sda.is_low() {
+            warn!("SDA STILL stuck low, wtf?")
+        }
+        if scl.is_low() {
+            warn!("SCL STILL stuck low, wtf?")
+        }
     }
 
-    let npd = Output::new(p.P0_15, Level::High, OutputDrive::Standard);
-    let irq = Input::new(p.P0_20, Pull::None);
+    let mut config = twim::Config::default();
+    config.frequency = twim::Frequency::K400;
+    config.scl_high_drive = true;
+    config.sda_high_drive = true;
 
-    let miso = p.P0_16;
-    let mosi = p.P0_17;
-    let sck = p.P0_18;
-    let cs = p.P0_19;
+    let twim = Twim::new(
+        p.TWISPI0,
+        interrupt::take!(SPIM0_SPIS0_TWIM0_TWIS0_SPI0_TWI0),
+        sda,
+        scl,
+        config,
+    );
 
-    let mut config = Config::default();
-    config.frequency = Frequency::M1;
-    let spi = Spim::new(p.SPI2, interrupt::take!(SPIM2_SPIS2_SPI2), sck, miso, mosi, config);
-    let cs = Output::new(cs, Level::High, OutputDrive::HighDrive);
-    let spi = ExclusiveDevice::new(spi, cs);
-    let iface = SpiInterface::new(spi);
-    let mut fm = Fm175xx::new(iface, npd, irq);
+    let iface = I2cInterface::new(twim, 0x28);
+    let mut fm = Fm175xx::new(iface, npd, irq).await;
 
-    fm.reset().await;
+    let wup_config = WakeupConfig {
+        sleep_time: 2,
+        prepare_time: 13,
+        measure_time: 11,
+        threshold: 20,
+        n_drive: 1,
+        p_drive: 4,
+    };
 
     loop {
-        fm.lpcd().await;
+        fm.wait_for_card(wup_config).await.unwrap();
 
-        fm.init_iso14443a().await;
-        let mut poller = Poller::new(&mut fm);
+        let poller = fm.start_iso14443a().await.unwrap();
+        let mut poller = Poller::new(poller);
 
         /*
         for card in poller.search::<8>().await.unwrap() {
@@ -168,8 +178,6 @@ async fn main(spawner: Spawner, p: Peripherals) {
                 }
             }
         };
-
-        fm.off();
     }
 
     /*
