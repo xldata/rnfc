@@ -10,12 +10,12 @@ pub mod iso14443a;
 mod regs;
 
 use core::convert::Infallible;
+
 use embassy::time::{Duration, Timer};
 use embedded_hal::digital::blocking::{InputPin, OutputPin};
 use embedded_hal_async::digital::Wait;
-use regs::Regs;
-
 pub use interface::*;
+use regs::Regs;
 
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]

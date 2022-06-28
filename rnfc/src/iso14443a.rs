@@ -1,4 +1,5 @@
 use core::future::Future;
+
 use heapless::Vec;
 use rnfc_traits::iso14443a::{Reader, UID_MAX_LEN};
 use rnfc_traits::iso14443a_ll as ll;

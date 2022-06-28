@@ -6,23 +6,21 @@
 mod fmt;
 
 use core::fmt::Debug;
-use cortex_m::asm::delay;
-use defmt_rtt as _;
-use embassy::executor::Spawner;
 
+use cortex_m::asm::delay;
+use embassy::executor::Spawner;
 use embassy_nrf::config::LfclkSource;
 use embassy_nrf::gpio::{Flex, Input, Level, Output, OutputDrive, Pull};
-use embassy_nrf::pac;
 use embassy_nrf::twim::{self, Twim};
-use embassy_nrf::{interrupt, Peripherals};
+use embassy_nrf::{interrupt, pac, Peripherals};
 use embedded_hal::digital::blocking::OutputPin;
 use embedded_hal::spi::blocking::{SpiBusFlush, SpiDevice};
 use embedded_hal::spi::{Error, ErrorKind, ErrorType};
-use panic_probe as _;
 use rnfc::iso14443a::Poller;
 use rnfc::iso_dep::IsoDepA;
 use rnfc_fm175xx::{Fm175xx, I2cInterface, WakeupConfig};
 use rnfc_traits::iso_dep::Reader;
+use {defmt_rtt as _, panic_probe as _};
 
 fn config() -> embassy_nrf::config::Config {
     let mut config = embassy_nrf::config::Config::default();

@@ -1,5 +1,6 @@
-use crate::{Iso14443aTag, IsoDepTag};
 use core::future::Future;
+
+use crate::{Iso14443aTag, IsoDepTag};
 
 pub const ATS_MAX_LEN: usize = 32; // TODO??
 

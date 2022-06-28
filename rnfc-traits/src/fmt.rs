@@ -6,6 +6,7 @@ compile_error!("You may not enable both `defmt` and `log` features.");
 
 #[cfg(not(feature = "defmt"))]
 pub use core::fmt::Debug as Format;
+
 #[cfg(feature = "defmt")]
 pub use defmt::Format;
 

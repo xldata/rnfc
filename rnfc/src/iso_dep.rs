@@ -1,4 +1,5 @@
 use core::future::Future;
+
 use rnfc_traits::iso14443a::Reader as Iso14443aReader;
 use rnfc_traits::iso_dep::Reader as IsoDepReader;
 

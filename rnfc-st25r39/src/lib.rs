@@ -12,13 +12,13 @@ pub mod iso14443a;
 mod regs;
 
 pub use aat::AatConfig;
+use embassy::time::{Duration, Instant};
+use embassy::util::yield_now;
 use embedded_hal::digital::blocking::InputPin;
 use embedded_hal_async::digital::Wait;
 pub use interface::{I2cInterface, Interface, SpiInterface};
 
 use self::regs::Regs;
-use embassy::time::{Duration, Instant};
-use embassy::util::yield_now;
 
 const DEFAULT_TIMEOUT: Duration = Duration::from_millis(500);
 
