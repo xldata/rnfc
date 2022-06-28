@@ -23,8 +23,13 @@ impl ll::Error for Error {
     }
 }
 
-pub struct Iso14443a<'a, I: Interface, NpdPin, IrqPin> {
-    inner: &'a mut Fm175xx<I, NpdPin, IrqPin>,
+pub struct Iso14443a<'d, I: Interface, NpdPin, IrqPin>
+where
+    I: Interface + 'd,
+    NpdPin: OutputPin + 'd,
+    IrqPin: InputPin + Wait + 'd,
+{
+    inner: &'d mut Fm175xx<I, NpdPin, IrqPin>,
 }
 
 impl<I: Interface, NpdPin, IrqPin> Fm175xx<I, NpdPin, IrqPin>
@@ -33,8 +38,12 @@ where
     IrqPin: InputPin + Wait,
 {
     pub async fn start_iso14443a(&mut self) -> Result<Iso14443a<I, NpdPin, IrqPin>, Error> {
-        self.npd.set_high().unwrap();
-        Timer::after(Duration::from_millis(10)).await;
+        self.on().await;
+
+        self.regs().command().write(|w| {
+            w.set_powerdown(false);
+            w.set_rcvoff(false);
+        });
 
         self.regs().txcontrol().write(|w| {
             w.set_tx1rfen(true);
@@ -42,7 +51,8 @@ where
             w.set_invtx2on(true);
         });
 
-        Timer::after(Duration::from_millis(10)).await;
+        // Field on guard time
+        Timer::after(Duration::from_millis(5)).await;
 
         self.regs().txmode().write(|w| {
             w.set_framing(regs::Framing::ISO14443A);
@@ -77,6 +87,17 @@ where
         });
 
         Ok(Iso14443a { inner: self })
+    }
+}
+
+impl<'d, I, NpdPin, IrqPin> Drop for Iso14443a<'d, I, NpdPin, IrqPin>
+where
+    I: Interface + 'd,
+    NpdPin: OutputPin + 'd,
+    IrqPin: InputPin + Wait + 'd,
+{
+    fn drop(&mut self) {
+        self.inner.off();
     }
 }
 
