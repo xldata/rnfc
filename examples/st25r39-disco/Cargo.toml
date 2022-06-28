@@ -3,7 +3,6 @@ authors = ["Dario Nieuwenhuis <dirbaio@dirbaio.net>"]
 edition = "2021"
 name = "rnfc-example-st25r39-disco"
 version = "0.1.0"
-resolver = "2"
 
 [features]
 default = [
