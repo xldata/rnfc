@@ -477,6 +477,8 @@ impl<I: Interface, IrqPin: InputPin + Wait> St25r39<I, IrqPin> {
                     include_irq_measurement,
                     weight,
                 } => {
+                    let val = self.measure_amplitude().await?;
+                    self.regs().amplitude_measure_ref().write_value(val)?;
                     conf.set_am_ae(true);
                     conf.set_am_aam(include_irq_measurement);
                     conf.set_am_aew(weight);
@@ -501,6 +503,8 @@ impl<I: Interface, IrqPin: InputPin + Wait> St25r39<I, IrqPin> {
                     include_irq_measurement,
                     weight,
                 } => {
+                    let val = self.measure_phase().await?;
+                    self.regs().phase_measure_ref().write_value(val)?;
                     conf.set_pm_ae(true);
                     conf.set_pm_aam(include_irq_measurement);
                     conf.set_pm_aew(weight);
@@ -530,6 +534,9 @@ impl<I: Interface, IrqPin: InputPin + Wait> St25r39<I, IrqPin> {
                     include_irq_measurement,
                     weight,
                 } => {
+                    let val = self.measure_capacitance().await?;
+                    info!("Measured: {}", val);
+                    self.regs().capacitance_measure_ref().write_value(val)?;
                     conf.set_cm_ae(true);
                     conf.set_cm_aam(include_irq_measurement);
                     conf.set_cm_aew(weight);
