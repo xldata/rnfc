@@ -49,14 +49,15 @@ pub struct WakeupConfig {
 const ADC_REFERENCE_MIN: u8 = 0;
 const ADC_REFERENCE_MAX: u8 = 0x7F;
 
-pub struct Fm175xx<I: Interface, NpdPin, IrqPin> {
+pub struct Fm175xx<I, NpdPin, IrqPin> {
     iface: I,
     npd: NpdPin,
     irq: IrqPin,
 }
 
-impl<I: Interface, NpdPin, IrqPin> Fm175xx<I, NpdPin, IrqPin>
+impl<I, NpdPin, IrqPin> Fm175xx<I, NpdPin, IrqPin>
 where
+    I: Interface,
     NpdPin: OutputPin,
     IrqPin: InputPin + Wait,
 {
@@ -346,6 +347,10 @@ where
         Ok(len)
     }
      */
+
+    pub fn raw(&mut self) -> Raw<'_, I, NpdPin, IrqPin> {
+        Raw { inner: self }
+    }
 }
 
 /// Find lowest value in min..max (min included, max excluded)
@@ -368,5 +373,46 @@ fn binary_search(mut min: usize, mut max: usize, mut f: impl FnMut(usize) -> boo
         None
     } else {
         Some(max)
+    }
+}
+
+pub struct Raw<'a, I, NpdPin, IrqPin>
+where
+    I: Interface,
+    NpdPin: OutputPin,
+    IrqPin: InputPin + Wait,
+{
+    inner: &'a mut Fm175xx<I, NpdPin, IrqPin>,
+}
+
+impl<'a, I, NpdPin, IrqPin> Raw<'a, I, NpdPin, IrqPin>
+where
+    I: Interface,
+    NpdPin: OutputPin,
+    IrqPin: InputPin + Wait,
+{
+    pub async fn field_on(&mut self) -> Result<(), Infallible> {
+        self.inner.on().await;
+
+        self.inner.regs().command().write(|w| {
+            w.set_powerdown(false);
+            w.set_rcvoff(false);
+        });
+
+        self.inner.regs().txcontrol().write(|w| {
+            w.set_tx1rfen(true);
+            w.set_tx2rfen(true);
+            w.set_invtx2on(true);
+        });
+
+        Ok(())
+    }
+    pub async fn field_off(&mut self) -> Result<(), Infallible> {
+        self.inner.off();
+        Ok(())
+    }
+    pub async fn driver_hi_z(&mut self) -> Result<(), Infallible> {
+        self.inner.off();
+        Ok(())
     }
 }
