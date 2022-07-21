@@ -65,13 +65,11 @@ where
         });
         self.regs().modwidth().write_value(0x26);
         self.regs().gsn().write(|w| {
-            w.set_cwgsn(15);
-            w.set_modgsn(8);
+            w.set_cwgsn(8); // reset value: 8
         });
         self.regs().cwgsp().write(|w| {
-            w.set_cwgsp(31);
+            w.set_cwgsp(32); // reset value: 32
         });
-
         self.regs().control().write(|w| {
             w.set_initiator(true);
         });
