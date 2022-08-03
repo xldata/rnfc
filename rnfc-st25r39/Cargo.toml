@@ -10,7 +10,8 @@ defmt = [ "dep:defmt", "rnfc-traits/defmt", "heapless/defmt-impl" ]
 defmt = { version = "0.3", optional = true }
 log = { version = "0.4.14", optional = true }
 
-embassy = { version = "0.1.0", features = ["time"]}
+embassy-executor = { version = "0.1.0", features = ["time"]}
+embassy-util = { version = "0.1.0" }
 rnfc-traits = { version = "0.1.0", path = "../rnfc-traits" }
 heapless = { version = "0.7.1", default-features = false } 
 embedded-hal = "1.0.0-alpha.8"

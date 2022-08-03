@@ -1,6 +1,6 @@
 use core::future::Future;
 
-use embassy::time::{with_timeout, Duration, Timer};
+use embassy_executor::time::{with_timeout, Duration, Timer};
 use rnfc_traits::iso14443a_ll as ll;
 
 use crate::*;

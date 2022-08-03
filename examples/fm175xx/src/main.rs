@@ -8,7 +8,7 @@ mod fmt;
 use core::fmt::Debug;
 
 use cortex_m::asm::delay;
-use embassy::executor::Spawner;
+use embassy_executor::executor::Spawner;
 use embassy_nrf::config::LfclkSource;
 use embassy_nrf::gpio::{Flex, Input, Level, Output, OutputDrive, Pull};
 use embassy_nrf::twim::{self, Twim};
@@ -29,7 +29,7 @@ fn config() -> embassy_nrf::config::Config {
     config
 }
 
-#[embassy::main(config = "config()")]
+#[embassy_executor::main(config = "config()")]
 async fn main(_spawner: Spawner, p: Peripherals) {
     unsafe {
         let nvmc = &*pac::NVMC::ptr();
