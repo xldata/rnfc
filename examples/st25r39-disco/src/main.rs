@@ -9,15 +9,14 @@ mod fmt;
 mod device;
 
 use defmt_rtt as _; // global logger
-use embassy_executor::executor::Spawner;
-use embassy_executor::time::{Duration, Timer};
+use embassy_executor::Spawner;
 use embassy_stm32::dma::NoDma;
 use embassy_stm32::exti::ExtiInput;
 use embassy_stm32::gpio::{Input, Level, Output, Pull, Speed};
 use embassy_stm32::rcc::{self};
 use embassy_stm32::spi::{Config, Phase, Polarity, Spi};
 use embassy_stm32::time::Hertz;
-use embassy_stm32::Peripherals;
+use embassy_time::{Duration, Timer};
 use panic_probe as _;
 use rnfc::iso14443a::Poller;
 use rnfc::iso_dep::IsoDepA;
@@ -26,21 +25,19 @@ use rnfc_st25r39::{SpiInterface, St25r39, WakeupConfig, WakeupMethodConfig, Wake
 
 use crate::device::ExclusiveDevice;
 
-fn config() -> embassy_stm32::Config {
-    let mut cfg = embassy_stm32::Config::default();
-    cfg.rcc.mux = rcc::ClockSrc::PLL(
+#[embassy_executor::main]
+async fn main(_spawner: Spawner) {
+    info!("Hello World!");
+
+    let mut config = embassy_stm32::Config::default();
+    config.rcc.mux = rcc::ClockSrc::PLL(
         rcc::PLLSource::HSI16,
         rcc::PLLClkDiv::Div2,
         rcc::PLLSrcDiv::Div1,
         rcc::PLLMul::Mul8,
         None,
     );
-    cfg
-}
-
-#[embassy_executor::main(config = "config()")]
-async fn main(_spawner: Spawner, p: Peripherals) {
-    info!("Hello World!");
+    let p = embassy_stm32::init(config);
 
     //let mut led = Output::new(p.PC4, Level::High, Speed::Low);
 

@@ -8,11 +8,11 @@ mod fmt;
 use core::fmt::Debug;
 
 use cortex_m::asm::delay;
-use embassy_executor::executor::Spawner;
+use embassy_executor::Spawner;
 use embassy_nrf::config::LfclkSource;
 use embassy_nrf::gpio::{Flex, Input, Level, Output, OutputDrive, Pull};
 use embassy_nrf::twim::{self, Twim};
-use embassy_nrf::{interrupt, pac, Peripherals};
+use embassy_nrf::{interrupt, pac};
 use embedded_hal::digital::blocking::OutputPin;
 use embedded_hal::spi::blocking::{SpiBusFlush, SpiDevice};
 use embedded_hal::spi::{Error, ErrorKind, ErrorType};
@@ -22,15 +22,13 @@ use rnfc_fm175xx::{Fm175xx, I2cInterface, WakeupConfig};
 use rnfc_traits::iso_dep::Reader;
 use {defmt_rtt as _, panic_probe as _};
 
-fn config() -> embassy_nrf::config::Config {
+#[embassy_executor::main]
+async fn main(_spawner: Spawner) {
     let mut config = embassy_nrf::config::Config::default();
     //config.hfclk_source = HfclkSource::ExternalXtal;
     config.lfclk_source = LfclkSource::ExternalXtal;
-    config
-}
+    let p = embassy_nrf::init(config);
 
-#[embassy_executor::main(config = "config()")]
-async fn main(_spawner: Spawner, p: Peripherals) {
     unsafe {
         let nvmc = &*pac::NVMC::ptr();
         let power = &*pac::POWER::ptr();

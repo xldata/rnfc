@@ -1,4 +1,4 @@
-use embassy_executor::time::{Duration, Timer};
+use embassy_time::{Duration, Timer};
 use embedded_hal::digital::blocking::InputPin;
 use embedded_hal_async::digital::Wait;
 

@@ -1,6 +1,6 @@
 use core::future::Future;
 
-use embassy_executor::time::{Duration, Timer};
+use embassy_time::{Duration, Timer};
 use embassy_util::yield_now;
 use embedded_hal::digital::blocking::{InputPin, OutputPin};
 use embedded_hal_async::digital::Wait;
