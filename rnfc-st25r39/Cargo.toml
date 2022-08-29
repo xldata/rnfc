@@ -11,7 +11,7 @@ defmt = { version = "0.3", optional = true }
 log = { version = "0.4.14", optional = true }
 
 embassy-time = { version = "0.1.0" }
-embassy-util = { version = "0.1.0" }
+embassy-futures = { version = "0.1.0" }
 rnfc-traits = { version = "0.1.0", path = "../rnfc-traits" }
 heapless = { version = "0.7.1", default-features = false } 
 embedded-hal = "1.0.0-alpha.8"

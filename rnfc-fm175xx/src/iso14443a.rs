@@ -1,7 +1,7 @@
 use core::future::Future;
 
+use embassy_futures::yield_now;
 use embassy_time::{Duration, Timer};
-use embassy_util::yield_now;
 use embedded_hal::digital::blocking::{InputPin, OutputPin};
 use embedded_hal_async::digital::Wait;
 use rnfc_traits::iso14443a_ll as ll;
