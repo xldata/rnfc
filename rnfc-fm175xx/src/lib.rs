@@ -1,6 +1,5 @@
 #![no_std]
-#![feature(generic_associated_types)]
-#![feature(type_alias_impl_trait)]
+#![feature(async_fn_in_trait, impl_trait_projections)]
 
 // Must go FIRST so that other mods see its macros.
 mod fmt;
@@ -12,7 +11,7 @@ mod regs;
 use core::convert::Infallible;
 
 use embassy_time::{Duration, Timer};
-use embedded_hal::digital::blocking::{InputPin, OutputPin};
+use embedded_hal::digital::{InputPin, OutputPin};
 use embedded_hal_async::digital::Wait;
 pub use interface::*;
 use regs::Regs;

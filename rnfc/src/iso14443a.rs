@@ -1,5 +1,3 @@
-use core::future::Future;
-
 use heapless::Vec;
 use rnfc_traits::iso14443a::{Reader, UID_MAX_LEN};
 use rnfc_traits::iso14443a_ll as ll;
@@ -305,19 +303,15 @@ pub struct Card<'d, T: LLReader> {
 impl<'d, T: LLReader + 'd> Reader for Card<'d, T> {
     type Error = T::Error;
 
-    type TransceiveFuture<'a> = impl Future<Output = Result<usize, Self::Error>> + 'a where Self: 'a;
-
-    fn transceive<'a>(&'a mut self, tx: &'a [u8], rx: &'a mut [u8]) -> Self::TransceiveFuture<'a> {
-        async move {
-            let opts = Frame::Standard {
-                timeout_ms: 100, // TODO unhardcode
-            };
-            let res = self.reader.transceive(tx, rx, opts).await?;
-            if res % 8 != 0 {
-                panic!("last byte was not complete!");
-            }
-            Ok(res / 8)
+    async fn transceive(&mut self, tx: &[u8], rx: &mut [u8]) -> Result<usize, Self::Error> {
+        let opts = Frame::Standard {
+            timeout_ms: 100, // TODO unhardcode
+        };
+        let res = self.reader.transceive(tx, rx, opts).await?;
+        if res % 8 != 0 {
+            panic!("last byte was not complete!");
         }
+        Ok(res / 8)
     }
 
     fn uid(&self) -> &[u8] {

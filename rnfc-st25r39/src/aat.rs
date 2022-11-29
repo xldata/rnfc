@@ -1,5 +1,5 @@
 use embassy_time::{Duration, Timer};
-use embedded_hal::digital::blocking::InputPin;
+use embedded_hal::digital::InputPin;
 use embedded_hal_async::digital::Wait;
 
 use crate::{Error, Interface, St25r39};

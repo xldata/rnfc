@@ -26,8 +26,8 @@ panic-probe = { version = "0.3", features = ["print-defmt"] }
 futures = { version = "0.3.17", default-features = false, features = ["async-await"] }
 rand = { version = "0.8.4", default-features = false }
 embedded-storage = "0.3.0"
-embedded-hal = { version = "1.0.0-alpha.8" }
-embedded-hal-async = { version = "0.1.0-alpha.1" }
+embedded-hal = { version = "1.0.0-alpha.9" }
+embedded-hal-async = "0.2.0-alpha.0"
 
 [profile.dev]
 debug = 2
@@ -60,8 +60,8 @@ opt-level = 0
 overflow-checks = false
 
 [patch.crates-io]
-embassy-executor = { git = "https://github.com/embassy-rs/embassy", rev = "7542505cf903930520773f5b6b5ff239b78a8f9c" }
-embassy-time = { git = "https://github.com/embassy-rs/embassy", rev = "7542505cf903930520773f5b6b5ff239b78a8f9c" }
-embassy-futures = { git = "https://github.com/embassy-rs/embassy", rev = "7542505cf903930520773f5b6b5ff239b78a8f9c" }
-embassy-macros = { git = "https://github.com/embassy-rs/embassy", rev = "7542505cf903930520773f5b6b5ff239b78a8f9c" }
-embassy-nrf = { git = "https://github.com/embassy-rs/embassy", rev = "7542505cf903930520773f5b6b5ff239b78a8f9c" }
+embassy-executor = { git = "https://github.com/embassy-rs/embassy", rev = "902586a019eafc1ab63fe78f464c4d4fee43cc85" }
+embassy-time = { git = "https://github.com/embassy-rs/embassy", rev = "902586a019eafc1ab63fe78f464c4d4fee43cc85" }
+embassy-futures = { git = "https://github.com/embassy-rs/embassy", rev = "902586a019eafc1ab63fe78f464c4d4fee43cc85" }
+embassy-macros = { git = "https://github.com/embassy-rs/embassy", rev = "902586a019eafc1ab63fe78f464c4d4fee43cc85" }
+embassy-nrf = { git = "https://github.com/embassy-rs/embassy", rev = "902586a019eafc1ab63fe78f464c4d4fee43cc85" }

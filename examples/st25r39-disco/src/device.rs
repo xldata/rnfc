@@ -1,7 +1,6 @@
 use core::fmt::Debug;
 
-use embedded_hal::digital::blocking::OutputPin;
-use embedded_hal::spi::blocking::*;
+use embedded_hal::digital::OutputPin;
 use embedded_hal::spi::*;
 
 /// Error type for [`ExclusiveDevice`] operations.

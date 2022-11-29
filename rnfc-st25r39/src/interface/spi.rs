@@ -1,4 +1,4 @@
-use embedded_hal::spi::blocking::{SpiBus, SpiBusRead, SpiBusWrite, SpiDevice};
+use embedded_hal::spi::{SpiBus, SpiBusRead, SpiBusWrite, SpiDevice};
 
 use super::Interface;
 

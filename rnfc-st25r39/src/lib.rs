@@ -1,6 +1,5 @@
 #![no_std]
-#![feature(generic_associated_types)]
-#![feature(type_alias_impl_trait)]
+#![feature(async_fn_in_trait, impl_trait_projections)]
 #![deny(unused_must_use)]
 
 // This must go FIRST so that other mods see its macros.
@@ -14,7 +13,7 @@ mod regs;
 pub use aat::AatConfig;
 use embassy_futures::yield_now;
 use embassy_time::{Duration, Instant};
-use embedded_hal::digital::blocking::InputPin;
+use embedded_hal::digital::InputPin;
 use embedded_hal_async::digital::Wait;
 pub use interface::{I2cInterface, Interface, SpiInterface};
 

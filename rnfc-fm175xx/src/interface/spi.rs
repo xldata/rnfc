@@ -1,5 +1,5 @@
 use cortex_m::asm::delay;
-use embedded_hal::spi::blocking::{SpiBus, SpiBusWrite, SpiDevice};
+use embedded_hal::spi::{SpiBus, SpiBusWrite, SpiDevice};
 
 use super::Interface;
 

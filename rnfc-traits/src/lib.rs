@@ -1,6 +1,5 @@
 #![no_std]
-#![feature(generic_associated_types)]
-#![feature(type_alias_impl_trait)]
+#![feature(async_fn_in_trait, impl_trait_projections)]
 
 // This must go FIRST so that other mods see its macros.
 mod fmt;

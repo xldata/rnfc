@@ -1,8 +1,6 @@
-use core::future::Future;
-
 use embassy_futures::yield_now;
 use embassy_time::{Duration, Timer};
-use embedded_hal::digital::blocking::{InputPin, OutputPin};
+use embedded_hal::digital::{InputPin, OutputPin};
 use embedded_hal_async::digital::Wait;
 use rnfc_traits::iso14443a_ll as ll;
 
@@ -108,12 +106,7 @@ where
 {
     type Error = Error;
 
-    type TransceiveFuture<'a> = impl Future<Output = Result<usize, Self::Error>>
-    where
-        Self: 'a;
-
-    fn transceive<'a>(&'a mut self, tx: &'a [u8], rx: &'a mut [u8], opts: ll::Frame) -> Self::TransceiveFuture<'a> {
-        async move {
+async fn transceive(&mut self, tx: &[u8], rx: &mut [u8], opts: ll::Frame) -> Result<usize, Self::Error> {
             debug!("TX: {:?} {:02x}", opts, tx);
 
             let r = &mut *self.inner;
@@ -293,6 +286,5 @@ where
                 debug!("RX: {:02x}", &rx[..rx_pos]);
                 Ok(rx_pos * 8)
             }
-        }
     }
 }

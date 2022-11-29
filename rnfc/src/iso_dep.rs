@@ -1,5 +1,3 @@
-use core::future::Future;
-
 use rnfc_traits::iso14443a::Reader as Iso14443aReader;
 use rnfc_traits::iso_dep::Reader as IsoDepReader;
 
@@ -101,70 +99,66 @@ where
 
 impl<T: Iso14443aReader> IsoDepReader for IsoDepA<T> {
     type Error = Error<T::Error>;
-    #[rustfmt::skip]
-    type TransceiveFuture<'a> = impl Future<Output = Result<usize, Self::Error>> + 'a where Self: 'a;
 
-    fn transceive<'a>(&'a mut self, tx: &'a [u8], rx: &'a mut [u8]) -> Self::TransceiveFuture<'a> {
-        async move {
-            let mut tx_buf = [0; FSC_MAX_WITHOUT_CRC];
-            let mut rx_buf = [0; FSC_MAX_WITHOUT_CRC];
+    async fn transceive(&mut self, tx: &[u8], rx: &mut [u8]) -> Result<usize, Self::Error> {
+        let mut tx_buf = [0; FSC_MAX_WITHOUT_CRC];
+        let mut rx_buf = [0; FSC_MAX_WITHOUT_CRC];
 
-            if tx.len() + 3 > self.fsc {
-                warn!("TX len bigger than FSC: {}+3 > {}", tx.len(), self.fsc);
-                return Err(Error::TxFrameTooBig);
+        if tx.len() + 3 > self.fsc {
+            warn!("TX len bigger than FSC: {}+3 > {}", tx.len(), self.fsc);
+            return Err(Error::TxFrameTooBig);
+        }
+
+        let tx_pcb = 0x02 | self.spinny_bit;
+
+        let mut tx_len = 1 + tx.len();
+        tx_buf[0] = tx_pcb;
+        tx_buf[1..tx_len].copy_from_slice(tx);
+
+        let rx_len = loop {
+            let rx_len = self
+                .card
+                .transceive(&tx_buf[..tx_len], &mut rx_buf)
+                .await
+                .map_err(Error::Iso14443a)?;
+
+            if rx_len == 0 {
+                warn!("isodep: received zero len data");
+                return Err(Error::Protocol);
             }
 
-            let tx_pcb = 0x02 | self.spinny_bit;
-
-            let mut tx_len = 1 + tx.len();
-            tx_buf[0] = tx_pcb;
-            tx_buf[1..tx_len].copy_from_slice(tx);
-
-            let rx_len = loop {
-                let rx_len = self
-                    .card
-                    .transceive(&tx_buf[..tx_len], &mut rx_buf)
-                    .await
-                    .map_err(Error::Iso14443a)?;
-
-                if rx_len == 0 {
-                    warn!("isodep: received zero len data");
+            // S-block Waiting Time Extension - WTX
+            if rx_buf[0] == 0xF2 {
+                if rx_len != 2 {
+                    warn!("isodep: invalid S(WTX) len {}", rx_len);
                     return Err(Error::Protocol);
                 }
 
-                // S-block Waiting Time Extension - WTX
-                if rx_buf[0] == 0xF2 {
-                    if rx_len != 2 {
-                        warn!("isodep: invalid S(WTX) len {}", rx_len);
-                        return Err(Error::Protocol);
-                    }
-
-                    tx_len = 2;
-                    tx_buf[0] = 0xF2;
-                    tx_buf[1] = rx_buf[1] & 0x3F;
-                } else {
-                    break rx_len;
-                }
-            };
-
-            let rx_pcb = rx_buf[0]; // protocol control byte (aka header)
-
-            // TODO this checks the spinny bit is equal, is this guaranteed?
-            if rx_pcb != tx_pcb {
-                panic!("Receiving chaining, R-blocks or S-blocks is TODO");
+                tx_len = 2;
+                tx_buf[0] = 0xF2;
+                tx_buf[1] = rx_buf[1] & 0x3F;
+            } else {
+                break rx_len;
             }
+        };
 
-            let rx_inf_len = rx_len - 1;
-            if rx_inf_len > rx.len() {
-                return Err(Error::RxFrameTooBig);
-            }
+        let rx_pcb = rx_buf[0]; // protocol control byte (aka header)
 
-            rx[..rx_inf_len].copy_from_slice(&rx_buf[1..rx_inf_len + 1]);
-
-            // spin the spinny bit
-            self.spinny_bit ^= 1;
-
-            Ok(rx_inf_len)
+        // TODO this checks the spinny bit is equal, is this guaranteed?
+        if rx_pcb != tx_pcb {
+            panic!("Receiving chaining, R-blocks or S-blocks is TODO");
         }
+
+        let rx_inf_len = rx_len - 1;
+        if rx_inf_len > rx.len() {
+            return Err(Error::RxFrameTooBig);
+        }
+
+        rx[..rx_inf_len].copy_from_slice(&rx_buf[1..rx_inf_len + 1]);
+
+        // spin the spinny bit
+        self.spinny_bit ^= 1;
+
+        Ok(rx_inf_len)
     }
 }
