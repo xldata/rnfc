@@ -12,7 +12,7 @@ use embassy_executor::Spawner;
 use embassy_nrf::config::LfclkSource;
 use embassy_nrf::gpio::{Flex, Input, Level, Output, OutputDrive, Pull};
 use embassy_nrf::twim::{self, Twim};
-use embassy_nrf::{interrupt, pac};
+use embassy_nrf::{bind_interrupts, pac, peripherals};
 use embedded_hal::digital::OutputPin;
 use embedded_hal::spi::{Error, ErrorKind, ErrorType, SpiBusFlush, SpiDevice};
 use rnfc::iso14443a::Poller;
@@ -20,6 +20,10 @@ use rnfc::iso_dep::IsoDepA;
 use rnfc_fm175xx::{Fm175xx, I2cInterface, WakeupConfig};
 use rnfc_traits::iso_dep::Reader;
 use {defmt_rtt as _, panic_probe as _};
+
+bind_interrupts!(struct Irqs {
+    SPIM0_SPIS0_TWIM0_TWIS0_SPI0_TWI0 => twim::InterruptHandler<peripherals::TWISPI0>;
+});
 
 #[embassy_executor::main]
 async fn main(_spawner: Spawner) {
@@ -129,13 +133,7 @@ async fn main(_spawner: Spawner) {
     config.scl_high_drive = true;
     config.sda_high_drive = true;
 
-    let twim = Twim::new(
-        p.TWISPI0,
-        interrupt::take!(SPIM0_SPIS0_TWIM0_TWIS0_SPI0_TWI0),
-        sda,
-        scl,
-        config,
-    );
+    let twim = Twim::new(p.TWISPI0, Irqs, sda, scl, config);
 
     let iface = I2cInterface::new(twim, 0x28);
     let mut fm = Fm175xx::new(iface, npd, irq).await;

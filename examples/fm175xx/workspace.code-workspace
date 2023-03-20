@@ -5,16 +5,17 @@
         }
     ],
     "settings": {
-        "rust-analyzer.checkOnSave.allTargets": false,
-        "rust-analyzer.procMacro.enable": true,
+        "editor.formatOnSave": true,
+        "[toml]": {
+            "editor.formatOnSave": false
+        },
+        "rust-analyzer.cargo.noDefaultFeatures": true,
+        "rust-analyzer.check.noDefaultFeatures": true,
+        "rust-analyzer.check.allTargets": false,
         "rust-analyzer.cargo.target": "thumbv7em-none-eabi",
         "rust-analyzer.cargo.features": [],
         "rust-analyzer.linkedProjects": [
             "examples/fm175xx/Cargo.toml",
         ],
-        "rust-analyzer.imports.granularity.enforce": true,
-        "rust-analyzer.imports.granularity.group": "module",
-        "rust-analyzer.cargo.buildScripts.enable": true,
-        "rust-analyzer.procMacro.attributes.enable": false,
     }
 }
