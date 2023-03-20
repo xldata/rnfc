@@ -138,14 +138,8 @@ where
 
         let adc_range = (config.measure_time - 1) << adc_shift;
         let adc_center = adc_range / 2;
-        let threshold_offs = ((adc_range as u32) * (config.threshold as u32) / 256) as u8;
-        let threshold_min = adc_center.saturating_sub(threshold_offs);
-        let threshold_max = adc_center.saturating_add(threshold_offs);
 
-        debug!(
-            "adc: range={} center={} threshold_offs={} threshold_min={} threshold_max={}",
-            adc_range, adc_center, threshold_offs, threshold_min, threshold_max
-        );
+        debug!("adc: range={} center={}", adc_range, adc_center);
 
         self.regs().lpcd_t1cfg().write(|w| {
             w.set_t1cfg(config.sleep_time);
@@ -155,10 +149,6 @@ where
         self.regs().lpcd_t3cfg().write(|w| w.set_t3cfg(config.measure_time));
         self.regs().lpcd_vmid_bd_cfg().write(|w| w.set_vmid_bd_cfg(8));
         self.regs().lpcd_auto_wup_cfg().write(|w| w.set_en(false));
-        self.regs().lpcd_threshold_min_l().write_value(threshold_min & 0x3F);
-        self.regs().lpcd_threshold_min_h().write_value(threshold_min >> 6);
-        self.regs().lpcd_threshold_max_l().write_value(threshold_max & 0x3F);
-        self.regs().lpcd_threshold_max_h().write_value(threshold_max >> 6);
 
         self.regs().lpcd_misc().write(|w| w.set_calib_vmid_en(true));
 
@@ -200,13 +190,31 @@ where
         debug!("adc refer {}", reference);
         self.lpcd_set_adc_config(reference, 0);
 
+        // Configure threshold based on current reading.
+        let curr = self.lpcd_read_adc();
+        let threshold_offs = ((adc_range as u32) * (config.threshold as u32) / 256) as u8;
+        let threshold_min = curr.saturating_sub(threshold_offs);
+        let threshold_max = curr.saturating_add(threshold_offs);
+        debug!(
+            "adc: curr={} threshold_offs={} threshold_min={} threshold_max={}",
+            curr, threshold_offs, threshold_min, threshold_max
+        );
+        self.regs().lpcd_threshold_min_l().write_value(threshold_min & 0x3F);
+        self.regs().lpcd_threshold_min_h().write_value(threshold_min >> 6);
+        self.regs().lpcd_threshold_max_l().write_value(threshold_max & 0x3F);
+        self.regs().lpcd_threshold_max_h().write_value(threshold_max >> 6);
+
         /*
         loop {
             let r = self.lpcd_read_adc();
-            info!(" res: {=u8}", r);
+            if r < threshold_min || r > threshold_max {
+                info!(" res: {=u8} ====== CARD DETECTED", r);
+            } else {
+                info!(" res: {=u8}", r);
+            }
             Timer::after(Duration::from_millis(30)).await;
         }
-         */
+        */
 
         self.regs().lpcd_misc().write(|w| w.set_calib_vmid_en(false));
         self.regs().lpcd_auto_wup_cfg().write(|w| {
