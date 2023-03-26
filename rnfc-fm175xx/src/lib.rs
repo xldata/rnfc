@@ -11,7 +11,7 @@ mod regs;
 
 use core::convert::Infallible;
 
-use embassy_time::{Duration, Timer};
+use embassy_time::{with_timeout, Duration, TimeoutError, Timer};
 use embedded_hal::digital::{InputPin, OutputPin};
 use embedded_hal_async::digital::Wait;
 pub use interface::*;
@@ -44,6 +44,8 @@ pub struct WakeupConfig {
     pub n_drive: u8,
     // PMOS carrier wave drive strength. 0..=7
     pub p_drive: u8,
+
+    pub recalibrate_interval: Option<Duration>,
 }
 
 const ADC_REFERENCE_MIN: u8 = 0;
@@ -97,156 +99,165 @@ where
     }
 
     pub async fn wait_for_card(&mut self, config: WakeupConfig) -> Result<(), Infallible> {
-        self.on().await;
-
         assert!((1..=15).contains(&config.sleep_time));
         assert!((2..=31).contains(&config.prepare_time));
         assert!((2..=31).contains(&config.measure_time));
         assert!((0..=1).contains(&config.n_drive));
         assert!((0..=7).contains(&config.p_drive));
 
-        //self.regs().command().write(|_| {});
-        self.regs().commien().write(|w| w.set_irqinv(true));
-        self.regs().divien().write(|w| w.set_irqpushpull(true));
-
-        // lpcd reset + enable
-        self.regs().lpcd_ctrl1().write(|w| {
-            w.set_bit_ctrl_set(false); // clear bits written with 1
-            w.set_rstn(true); // nRST=0
-            w.set_calibra_en(true); // CALIBRA_EN=0
-        });
-        self.regs().lpcd_ctrl1().write(|w| {
-            w.set_bit_ctrl_set(true); // set bits written with 1
-            w.set_rstn(true); // nRST=1
-            w.set_en(true); // EN=1
-            w.set_ie(true); // IE=1
-            w.set_sense_1(true); // SENSE1 = 1
-        });
-
-        self.regs().lpcd_ctrl2().write(|w| {
-            w.set_tx2en(true);
-            w.set_cwn(config.n_drive == 1);
-            w.set_cwp(config.p_drive);
-        });
-
-        self.regs().lpcd_ctrl3().write(|w| w.set_hpden(false));
-
-        let (t3clkdiv, adc_shift) = match config.measure_time {
-            16.. => (regs::LpcdT3clkdivk::DIV16, 3),
-            8.. => (regs::LpcdT3clkdivk::DIV8, 4),
-            0.. => (regs::LpcdT3clkdivk::DIV4, 5),
-        };
-
-        let adc_range = (config.measure_time - 1) << adc_shift;
-        let adc_center = adc_range / 2;
-
-        debug!("adc: range={} center={}", adc_range, adc_center);
-
-        self.regs().lpcd_t1cfg().write(|w| {
-            w.set_t1cfg(config.sleep_time);
-            w.set_t3clkdivk(t3clkdiv);
-        });
-        self.regs().lpcd_t2cfg().write(|w| w.set_t2cfg(config.prepare_time));
-        self.regs().lpcd_t3cfg().write(|w| w.set_t3cfg(config.measure_time));
-        self.regs().lpcd_vmid_bd_cfg().write(|w| w.set_vmid_bd_cfg(8));
-        self.regs().lpcd_auto_wup_cfg().write(|w| w.set_en(false));
-
-        self.regs().lpcd_misc().write(|w| w.set_calib_vmid_en(true));
-
-        // Calibrate! Note that:
-        // - Higher gain -> lower ADC reading
-        // - Higher reference voltage -> lower ADC reading
-
-        // First, find lowest gain (multiplier/divider) that satisfies "reading < center".
-        self.lpcd_set_adc_config(ADC_REFERENCE_MAX, 0);
-        let levels: [u8; 11] = [
-            0b000_00, 0b000_10, 0b000_01, 0b000_11, 0b001_11, 0b010_11, 0b011_11, 0b100_11, 0b101_11, 0b110_11, 0b111_11,
-        ];
-        let level = binary_search(0, levels.len(), |val| {
-            self.regs().lpcd_ctrl4().write_value(levels[val].into());
-            let meas = self.lpcd_read_adc();
-            let res = meas < adc_center;
-            debug!("adc search level: {} => {} {}", val, meas, res);
-            res
-        });
-        let level = match level {
-            Some(x) => x,
-            None => panic!("Gain calibration failed."),
-        };
-        debug!("adc level {}", level);
-        self.regs().lpcd_ctrl4().write_value(levels[level].into());
-
-        // Second, find lowest reference voltage that satisfies "reading < center".
-        let reference = binary_search(ADC_REFERENCE_MIN as _, ADC_REFERENCE_MAX as _, |val| {
-            self.lpcd_set_adc_config(val as _, 0);
-            let meas = self.lpcd_read_adc();
-            let res = meas < adc_center;
-            debug!("adc search refer: {} => {} {}", val, meas, res);
-            res
-        });
-        let reference = match reference {
-            Some(x) => x as u8,
-            None => panic!("Reference voltage calibration failed."),
-        };
-        debug!("adc refer {}", reference);
-        self.lpcd_set_adc_config(reference, 0);
-
-        // Configure threshold based on current reading.
-        let curr = self.lpcd_read_adc();
-        let threshold_offs = ((adc_range as u32) * (config.threshold as u32) / 256) as u8;
-        let threshold_min = curr.saturating_sub(threshold_offs);
-        let threshold_max = curr.saturating_add(threshold_offs);
-        debug!(
-            "adc: curr={} threshold_offs={} threshold_min={} threshold_max={}",
-            curr, threshold_offs, threshold_min, threshold_max
-        );
-        self.regs().lpcd_threshold_min_l().write_value(threshold_min & 0x3F);
-        self.regs().lpcd_threshold_min_h().write_value(threshold_min >> 6);
-        self.regs().lpcd_threshold_max_l().write_value(threshold_max & 0x3F);
-        self.regs().lpcd_threshold_max_h().write_value(threshold_max >> 6);
-
-        /*
         loop {
-            let r = self.lpcd_read_adc();
-            if r < threshold_min || r > threshold_max {
-                info!(" res: {=u8} ====== CARD DETECTED", r);
-            } else {
-                info!(" res: {=u8}", r);
+            self.on().await;
+
+            //self.regs().command().write(|_| {});
+            self.regs().commien().write(|w| w.set_irqinv(true));
+            self.regs().divien().write(|w| w.set_irqpushpull(true));
+
+            // lpcd reset + enable
+            self.regs().lpcd_ctrl1().write(|w| {
+                w.set_bit_ctrl_set(false); // clear bits written with 1
+                w.set_rstn(true); // nRST=0
+                w.set_calibra_en(true); // CALIBRA_EN=0
+            });
+            self.regs().lpcd_ctrl1().write(|w| {
+                w.set_bit_ctrl_set(true); // set bits written with 1
+                w.set_rstn(true); // nRST=1
+                w.set_en(true); // EN=1
+                w.set_ie(true); // IE=1
+                w.set_sense_1(true); // SENSE1 = 1
+            });
+
+            self.regs().lpcd_ctrl2().write(|w| {
+                w.set_tx2en(true);
+                w.set_cwn(config.n_drive == 1);
+                w.set_cwp(config.p_drive);
+            });
+
+            self.regs().lpcd_ctrl3().write(|w| w.set_hpden(false));
+
+            let (t3clkdiv, adc_shift) = match config.measure_time {
+                16.. => (regs::LpcdT3clkdivk::DIV16, 3),
+                8.. => (regs::LpcdT3clkdivk::DIV8, 4),
+                0.. => (regs::LpcdT3clkdivk::DIV4, 5),
+            };
+
+            let adc_range = (config.measure_time - 1) << adc_shift;
+            let adc_center = adc_range / 2;
+
+            debug!("adc: range={} center={}", adc_range, adc_center);
+
+            self.regs().lpcd_t1cfg().write(|w| {
+                w.set_t1cfg(config.sleep_time);
+                w.set_t3clkdivk(t3clkdiv);
+            });
+            self.regs().lpcd_t2cfg().write(|w| w.set_t2cfg(config.prepare_time));
+            self.regs().lpcd_t3cfg().write(|w| w.set_t3cfg(config.measure_time));
+            self.regs().lpcd_vmid_bd_cfg().write(|w| w.set_vmid_bd_cfg(8));
+            self.regs().lpcd_auto_wup_cfg().write(|w| w.set_en(false));
+
+            self.regs().lpcd_misc().write(|w| w.set_calib_vmid_en(true));
+
+            // Calibrate! Note that:
+            // - Higher gain -> lower ADC reading
+            // - Higher reference voltage -> lower ADC reading
+
+            // First, find lowest gain (multiplier/divider) that satisfies "reading < center".
+            self.lpcd_set_adc_config(ADC_REFERENCE_MAX, 0);
+            let levels: [u8; 11] = [
+                0b000_00, 0b000_10, 0b000_01, 0b000_11, 0b001_11, 0b010_11, 0b011_11, 0b100_11, 0b101_11, 0b110_11, 0b111_11,
+            ];
+            let level = binary_search(0, levels.len(), |val| {
+                self.regs().lpcd_ctrl4().write_value(levels[val].into());
+                let meas = self.lpcd_read_adc();
+                let res = meas < adc_center;
+                debug!("adc search level: {} => {} {}", val, meas, res);
+                res
+            });
+            let level = match level {
+                Some(x) => x,
+                None => panic!("Gain calibration failed."),
+            };
+            debug!("adc level {}", level);
+            self.regs().lpcd_ctrl4().write_value(levels[level].into());
+
+            // Second, find lowest reference voltage that satisfies "reading < center".
+            let reference = binary_search(ADC_REFERENCE_MIN as _, ADC_REFERENCE_MAX as _, |val| {
+                self.lpcd_set_adc_config(val as _, 0);
+                let meas = self.lpcd_read_adc();
+                let res = meas < adc_center;
+                debug!("adc search refer: {} => {} {}", val, meas, res);
+                res
+            });
+            let reference = match reference {
+                Some(x) => x as u8,
+                None => panic!("Reference voltage calibration failed."),
+            };
+            debug!("adc refer {}", reference);
+            self.lpcd_set_adc_config(reference, 0);
+
+            // Configure threshold based on current reading.
+            let curr = self.lpcd_read_adc();
+            let threshold_offs = ((adc_range as u32) * (config.threshold as u32) / 256) as u8;
+            let threshold_min = curr.saturating_sub(threshold_offs);
+            let threshold_max = curr.saturating_add(threshold_offs);
+            debug!(
+                "adc: curr={} threshold_offs={} threshold_min={} threshold_max={}",
+                curr, threshold_offs, threshold_min, threshold_max
+            );
+            self.regs().lpcd_threshold_min_l().write_value(threshold_min & 0x3F);
+            self.regs().lpcd_threshold_min_h().write_value(threshold_min >> 6);
+            self.regs().lpcd_threshold_max_l().write_value(threshold_max & 0x3F);
+            self.regs().lpcd_threshold_max_h().write_value(threshold_max >> 6);
+
+            /*
+            loop {
+                let r = self.lpcd_read_adc();
+                if r < threshold_min || r > threshold_max {
+                    info!(" res: {=u8} ====== CARD DETECTED", r);
+                } else {
+                    info!(" res: {=u8}", r);
+                }
+                Timer::after(Duration::from_millis(30)).await;
             }
-            Timer::after(Duration::from_millis(30)).await;
+            */
+
+            self.regs().lpcd_misc().write(|w| w.set_calib_vmid_en(false));
+            self.regs().lpcd_auto_wup_cfg().write(|w| {
+                w.set_en(false);
+                w.set_time(regs::LpcdAutoWupTime::_1HOUR);
+            });
+
+            self.regs().lpcd_ctrl1().write(|w| {
+                w.set_bit_ctrl_set(false);
+                w.set_rstn(true); // nRST = 0
+            });
+            self.regs().lpcd_ctrl1().write(|w| {
+                w.set_bit_ctrl_set(true);
+                w.set_rstn(true); // nRST = 1
+            });
+
+            //self.dump();
+
+            self.npd.set_low().unwrap();
+
+            let dur = config.recalibrate_interval.unwrap_or(Duration::from_secs(3 * 60 * 60));
+
+            info!("Waiting for irq...");
+            match with_timeout(dur, self.irq.wait_for_low()).await {
+                Ok(Ok(())) => {
+                    info!("Got irq!");
+
+                    //self.npd.set_high().unwrap();
+                    //Timer::after(Duration::from_millis(1)).await;
+                    //self.dump();
+                    //self.regs().lpcd_misc().write(|w| w.set_calib_vmid_en(true));
+                    //info!(" NOW READ: {=u8}", self.lpcd_read_adc());
+
+                    return Ok(());
+                }
+                Ok(Err(_)) => warn!("irq.wait_for_low() error"),
+                Err(TimeoutError) => info!("timed out, recalibrating..."),
+            }
         }
-        */
-
-        self.regs().lpcd_misc().write(|w| w.set_calib_vmid_en(false));
-        self.regs().lpcd_auto_wup_cfg().write(|w| {
-            w.set_en(false);
-            w.set_time(regs::LpcdAutoWupTime::_1HOUR);
-        });
-
-        self.regs().lpcd_ctrl1().write(|w| {
-            w.set_bit_ctrl_set(false);
-            w.set_rstn(true); // nRST = 0
-        });
-        self.regs().lpcd_ctrl1().write(|w| {
-            w.set_bit_ctrl_set(true);
-            w.set_rstn(true); // nRST = 1
-        });
-
-        //self.dump();
-
-        self.npd.set_low().unwrap();
-
-        info!("Waiting for irq...");
-        self.irq.wait_for_low().await.unwrap();
-        info!("Got irq!");
-
-        //self.npd.set_high().unwrap();
-        //Timer::after(Duration::from_millis(1)).await;
-        //self.dump();
-        //self.regs().lpcd_misc().write(|w| w.set_calib_vmid_en(true));
-        //info!(" NOW READ: {=u8}", self.lpcd_read_adc());
-
-        Ok(())
     }
 
     fn _dump(&mut self) {

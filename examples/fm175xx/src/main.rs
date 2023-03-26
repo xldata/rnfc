@@ -13,6 +13,7 @@ use embassy_nrf::config::LfclkSource;
 use embassy_nrf::gpio::{Flex, Input, Level, Output, OutputDrive, Pull};
 use embassy_nrf::twim::{self, Twim};
 use embassy_nrf::{bind_interrupts, pac, peripherals};
+use embassy_time::Duration;
 use embedded_hal::digital::OutputPin;
 use embedded_hal::spi::{Error, ErrorKind, ErrorType, SpiBusFlush, SpiDevice};
 use rnfc::iso14443a::Poller;
@@ -145,6 +146,7 @@ async fn main(_spawner: Spawner) {
         threshold: 20,
         n_drive: 1,
         p_drive: 4,
+        recalibrate_interval: Some(Duration::from_secs(20 * 60)), // 20min
     };
 
     loop {
