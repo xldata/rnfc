@@ -183,6 +183,8 @@ where
             return Ok(());
             */
 
+            let mut failed = false;
+
             let level = binary_search(0, levels.len() as _, |val| {
                 self.regs().lpcd_ctrl4().write_value(levels[val as usize].into());
                 let meas = self.lpcd_read_adc();
@@ -192,7 +194,11 @@ where
             });
             let level = match level {
                 Some(x) => x as usize,
-                None => panic!("Gain calibration failed."),
+                None => {
+                    warn!("Gain calibration failed.");
+                    failed = true;
+                    levels.len() - 1
+                }
             };
             debug!("adc level {}", level);
             self.regs().lpcd_ctrl4().write_value(levels[level].into());
@@ -207,7 +213,11 @@ where
             });
             let reference = match reference {
                 Some(x) => x as u8,
-                None => panic!("Reference voltage calibration failed."),
+                None => {
+                    warn!("Reference voltage calibration failed.");
+                    failed = true;
+                    ADC_REFERENCE_MAX
+                }
             };
             debug!("adc refer {}", reference);
             self.lpcd_set_adc_config(reference, 0);
@@ -257,7 +267,12 @@ where
 
             self.npd.set_low().unwrap();
 
-            let dur = config.recalibrate_interval.unwrap_or(Duration::from_secs(3 * 60 * 60));
+            let dur = if failed {
+                // if calibration failed, force recalibrate very soon.
+                Duration::from_secs(10)
+            } else {
+                config.recalibrate_interval.unwrap_or(Duration::from_secs(3 * 60 * 60))
+            };
 
             info!("Waiting for irq...");
             match with_timeout(dur, self.irq.wait_for_low()).await {
@@ -329,7 +344,7 @@ where
             w.set_calibra_en(true); // calibra_en = 1
         });
 
-        //delay(640_000); // 10ms
+        //cortex_m::asm::delay(640_000); // 10ms
 
         //info!("calib: waiting for irq..");
         while !self.regs().lpcd_irq().read().calib_irq() {}
