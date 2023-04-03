@@ -162,18 +162,36 @@ where
 
             // First, find lowest gain (multiplier/divider) that satisfies "reading < center".
             self.lpcd_set_adc_config(ADC_REFERENCE_MAX, 0);
-            let levels: [u8; 11] = [
-                0b000_00, 0b000_10, 0b000_01, 0b000_11, 0b001_11, 0b010_11, 0b011_11, 0b100_11, 0b101_11, 0b110_11, 0b111_11,
+            let levels: [u8; 32] = [
+                0, 4, 2, 8, 6, 1, 10, 5, 12, 16, 9, 3, 14, 20, 18, 7, 24, 22, 13, 11, 17, 26, 28, 21, 15, 30, 25, 19, 23, 29,
+                27, 31,
             ];
-            let level = binary_search(0, levels.len(), |val| {
-                self.regs().lpcd_ctrl4().write_value(levels[val].into());
+
+            /*
+            for level in 0..levels.len() {
+                let mut vals = [0; ADC_REFERENCE_MAX as usize + 1];
+                for reference in ADC_REFERENCE_MIN..=ADC_REFERENCE_MAX {
+                    self.regs().lpcd_ctrl4().write_value(levels[level].into());
+                    self.lpcd_set_adc_config(reference as _, 0);
+
+                    vals[reference as usize] = self.lpcd_read_adc();
+                }
+                info!("level={} {}", level, vals);
+                embassy_futures::yield_now().await;
+            }
+
+            return Ok(());
+            */
+
+            let level = binary_search(0, levels.len() as _, |val| {
+                self.regs().lpcd_ctrl4().write_value(levels[val as usize].into());
                 let meas = self.lpcd_read_adc();
                 let res = meas < adc_center;
                 debug!("adc search level: {} => {} {}", val, meas, res);
                 res
             });
             let level = match level {
-                Some(x) => x,
+                Some(x) => x as usize,
                 None => panic!("Gain calibration failed."),
             };
             debug!("adc level {}", level);
@@ -378,8 +396,9 @@ where
 /// If `f` returns `false` for all values, returns `None`.
 ///
 /// `f` is assumed to be monotonically increasing.
-fn binary_search(mut min: usize, mut max: usize, mut f: impl FnMut(usize) -> bool) -> Option<usize> {
+fn binary_search(mut min: i32, mut max: i32, mut f: impl FnMut(i32) -> bool) -> Option<i32> {
     let orig_max = max;
+    min -= 1;
     while min + 1 < max {
         let m = (min + max) / 2;
         if f(m) {
