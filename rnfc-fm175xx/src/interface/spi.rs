@@ -94,6 +94,10 @@ where
     }
 
     fn write_fifo(&mut self, data: &[u8]) {
+        if data.len() == 0 {
+            return;
+        }
+
         trace!("     write_fifo {=[u8]:02x}", data);
         delay(10_000);
 
