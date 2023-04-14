@@ -1,6 +1,7 @@
 use embedded_hal::i2c::I2c;
 
 use super::Interface;
+use crate::FIFO_SIZE;
 
 pub struct I2cInterface<T: I2c> {
     i2c: T,
@@ -68,7 +69,9 @@ impl<T: I2c> Interface for I2cInterface<T> {
             return;
         }
 
-        let mut buf = [0; 65];
+        assert!(data.len() <= FIFO_SIZE);
+
+        let mut buf = [0; FIFO_SIZE + 1];
         buf[0] = 0x09;
         buf[1..1 + data.len()].copy_from_slice(data);
         self.i2c.write(self.address, &buf[..1 + data.len()]).unwrap();

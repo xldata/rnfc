@@ -4,7 +4,7 @@ use embedded_hal::digital::{InputPin, OutputPin};
 use embedded_hal_async::digital::Wait;
 use rnfc_traits::iso14443a_ll as ll;
 
-use crate::{regs, Fm175xx, Interface};
+use crate::{regs, Fm175xx, Interface, FIFO_SIZE};
 
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
@@ -118,20 +118,16 @@ where
             ll::Frame::Standard { timeout_ms } => (tx, true, timeout_ms, 0, 0),
         };
 
-        // Disable CRC
+        // Set CRC
         r.regs().txmode().modify(|w| w.set_crcen(crc));
         r.regs().rxmode().modify(|w| w.set_crcen(crc));
 
-        // SEt timeout
+        // Set timeout
         r.set_timer(timeout_ms);
 
         // Halt whatever currently running command.
         r.regs().command().write(|w| {
             w.set_command(regs::CommandVal::IDLE);
-        });
-
-        r.regs().waterlevel().write(|w| {
-            w.set_waterlevel(32);
         });
 
         // Clear all IRQs
@@ -144,21 +140,22 @@ where
             w.set_valuesaftercoll(!matches!(opts, ll::Frame::Anticoll { .. }));
         });
 
-        // Start trx
-        r.regs().command().write(|w| {
-            w.set_command(regs::CommandVal::TRANSCEIVE);
-        });
-
-        // TODO chunk tx if it's bigger than 64 bytes (the fifo size)
-        r.iface.write_fifo(&tx);
-
-        r.regs().bitframing().write(|w| {
-            w.set_startsend(true);
-            w.set_rxalign(rxalign);
-            w.set_txlastbits(lastbits);
-        });
-
         let mut collision = false;
+
+        let mut tx_pos = 0;
+        let mut write_fifo = |r: &mut Fm175xx<I, NpdPin, IrqPin>| {
+            if tx_pos >= tx.len() {
+                return Ok::<(), Error>(());
+            }
+
+            let used = r.regs().fifolevel().read().level() as usize;
+            let free = FIFO_SIZE - used;
+            let n = free.min(tx.len() - tx_pos);
+            r.iface.write_fifo(&tx[tx_pos..][..n]);
+            tx_pos += n;
+            Ok(())
+        };
+
         let mut rx_pos = 0;
         let mut read_fifo = |r: &mut Fm175xx<I, NpdPin, IrqPin>| {
             let bytes = r.regs().fifolevel().read().level() as usize;
@@ -170,6 +167,20 @@ where
             rx_pos += bytes;
             Ok(())
         };
+
+        // Fill FIFO as much as we can, to begin with.
+        write_fifo(r)?;
+
+        // Start trx
+        r.regs().command().write(|w| {
+            w.set_command(regs::CommandVal::TRANSCEIVE);
+        });
+
+        r.regs().bitframing().write(|w| {
+            w.set_startsend(true);
+            w.set_rxalign(rxalign);
+            w.set_txlastbits(lastbits);
+        });
 
         let mut tx_done = false;
         loop {
@@ -217,28 +228,31 @@ where
                     return Err(Error::Other);
                 }
             }
-            if tx_done && irqs.hialerti() {
-                trace!("irq: hialerti");
-                read_fifo(r)?;
-            }
-            //if irqs.loalerti() {
-            //    trace!("irq: loalerti");
-            //}
-            if irqs.idlei() {
-                trace!("irq: idle");
+
+            if irqs.txi() {
+                trace!("irq: tx done");
+                tx_done = true;
             }
             if irqs.rxi() {
                 trace!("irq: rx done");
                 break;
             }
-            if irqs.txi() {
-                trace!("irq: tx done");
-                tx_done = true;
-            }
 
             irqs.set_set(false);
             r.regs().commirq().write_value(irqs);
+
+            if tx_done {
+                read_fifo(r)?;
+            } else {
+                write_fifo(r)?;
+            }
+
             yield_now().await;
+        }
+
+        if tx_pos != tx.len() {
+            warn!("TX fifo underflow (tx done fired before we wrote the bytes)");
+            return Err(Error::Other);
         }
 
         read_fifo(r)?;

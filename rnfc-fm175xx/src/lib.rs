@@ -48,6 +48,8 @@ pub struct WakeupConfig {
     pub recalibrate_interval: Option<Duration>,
 }
 
+const FIFO_SIZE: usize = 64;
+
 const ADC_REFERENCE_MIN: u8 = 0;
 const ADC_REFERENCE_MAX: u8 = 0x7F;
 
