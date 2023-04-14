@@ -68,15 +68,10 @@ impl<T: I2c> Interface for I2cInterface<T> {
             return;
         }
 
-        const CHUNK_SIZE: usize = 64;
-        let mut buf = [0; CHUNK_SIZE + 1];
+        let mut buf = [0; 65];
         buf[0] = 0x09;
-
-        for chunk in data.chunks(CHUNK_SIZE) {
-            buf[1..1 + chunk.len()].copy_from_slice(chunk);
-            self.i2c.write(self.address, &buf[..1 + chunk.len()]).unwrap();
-        }
-
+        buf[1..1 + data.len()].copy_from_slice(data);
+        self.i2c.write(self.address, &buf[..1 + data.len()]).unwrap();
         trace!("     write_fifo {=[u8]:02x}", data);
     }
 }
