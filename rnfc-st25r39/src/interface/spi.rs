@@ -1,30 +1,18 @@
-use embedded_hal::spi::{SpiBus, SpiBusRead, SpiBusWrite, SpiDevice};
+use embedded_hal::spi::{Operation, SpiDevice};
 
 use super::Interface;
 
-pub struct SpiInterface<T>
-where
-    T: SpiDevice,
-    T::Bus: SpiBus,
-{
+pub struct SpiInterface<T: SpiDevice> {
     spi: T,
 }
 
-impl<T> SpiInterface<T>
-where
-    T: SpiDevice,
-    T::Bus: SpiBus,
-{
+impl<T: SpiDevice> SpiInterface<T> {
     pub fn new(spi: T) -> Self {
         Self { spi }
     }
 }
 
-impl<T> Interface for SpiInterface<T>
-where
-    T: SpiDevice,
-    T::Bus: SpiBus,
-{
+impl<T: SpiDevice> Interface for SpiInterface<T> {
     type Error = T::Error;
 
     fn do_command(&mut self, cmd: u8) -> Result<(), Self::Error> {
@@ -85,18 +73,10 @@ where
     }
 
     fn read_fifo(&mut self, data: &mut [u8]) -> Result<(), Self::Error> {
-        self.spi.transaction(|bus| {
-            bus.write(&[0x9F])?;
-            bus.read(data)?;
-            Ok(())
-        })
+        self.spi.transaction(&mut [Operation::Write(&[0x9f]), Operation::Read(data)])
     }
 
     fn write_fifo(&mut self, data: &[u8]) -> Result<(), Self::Error> {
-        self.spi.transaction(|bus| {
-            bus.write(&[0x80])?;
-            bus.write(data)?;
-            Ok(())
-        })
+        self.spi.transaction(&mut [Operation::Write(&[0x80]), Operation::Write(data)])
     }
 }

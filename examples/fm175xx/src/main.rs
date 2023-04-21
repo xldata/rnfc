@@ -5,17 +5,12 @@
 // Must go FIRST so that other mods see its macros.
 mod fmt;
 
-use core::fmt::Debug;
-
-use cortex_m::asm::delay;
 use embassy_executor::Spawner;
 use embassy_nrf::config::LfclkSource;
 use embassy_nrf::gpio::{Flex, Input, Level, Output, OutputDrive, Pull};
 use embassy_nrf::twim::{self, Twim};
 use embassy_nrf::{bind_interrupts, pac, peripherals};
 use embassy_time::Duration;
-use embedded_hal::digital::OutputPin;
-use embedded_hal::spi::{Error, ErrorKind, ErrorType, SpiBusFlush, SpiDevice};
 use rnfc::iso14443a::Poller;
 use rnfc::iso_dep::IsoDepA;
 use rnfc_fm175xx::{Fm175xx, I2cInterface, WakeupConfig};
@@ -173,115 +168,5 @@ async fn main(_spawner: Spawner) {
                 }
             }
         };
-    }
-
-    /*
-
-    fm.clear_fifo();
-    info!("fifo level: {}", fm.regs().fifolevel().read().0);
-    fm.write_fifo(&[0x12, 0x34, 0x56, 0x78]);
-    info!("fifo level: {}", fm.regs().fifolevel().read().0);
-
-    let mut buf = [0; 1];
-    fm.read_fifo(&mut buf);
-    info!("fifo level: {}", fm.regs().fifolevel().read().0);
-    let mut buf = [0; 3];
-    fm.read_fifo(&mut buf);
-    info!("fifo level: {}", fm.regs().fifolevel().read().0);
-
-
-    cs.set_low();
-
-    let mut buf = [0x82, 0x00];
-    info!("buf: {:x}", buf);
-    spi.transfer(&mut buf).unwrap();
-    info!("buf: {:x}", buf);
-    cs.set_high();
-
-    loop {
-        info!("HIGH");
-        led.set_high();
-        Timer::after(Duration::from_millis(300)).await;
-        info!("LOW");
-        led.set_low();
-        Timer::after(Duration::from_millis(300)).await;
-    }
-     */
-}
-
-/// Error type for [`ExclusiveDevice`] operations.
-#[derive(Copy, Clone, Eq, PartialEq, Debug)]
-pub enum ExclusiveDeviceError<BUS, CS> {
-    /// An inner SPI bus operation failed
-    Spi(BUS),
-    /// Asserting or deasserting CS failed
-    Cs(CS),
-}
-
-impl<BUS, CS> Error for ExclusiveDeviceError<BUS, CS>
-where
-    BUS: Error + Debug,
-    CS: Debug,
-{
-    fn kind(&self) -> ErrorKind {
-        match self {
-            Self::Spi(e) => e.kind(),
-            Self::Cs(_) => ErrorKind::ChipSelectFault,
-        }
-    }
-}
-
-/// [`SpiDevice`] implementation with exclusive access to the bus (not shared).
-///
-/// This is the most straightforward way of obtaining an [`SpiDevice`] from an [`SpiBus`],
-/// ideal for when no sharing is required (only one SPI device is present on the bus).
-pub struct ExclusiveDevice<BUS, CS> {
-    bus: BUS,
-    cs: CS,
-}
-
-impl<BUS, CS> ExclusiveDevice<BUS, CS> {
-    /// Create a new ExclusiveDevice
-    pub fn new(bus: BUS, cs: CS) -> Self {
-        Self { bus, cs }
-    }
-}
-
-impl<BUS, CS> ErrorType for ExclusiveDevice<BUS, CS>
-where
-    BUS: ErrorType,
-    CS: OutputPin,
-{
-    type Error = ExclusiveDeviceError<BUS::Error, CS::Error>;
-}
-
-impl<BUS, CS> SpiDevice for ExclusiveDevice<BUS, CS>
-where
-    BUS: SpiBusFlush,
-    CS: OutputPin,
-{
-    type Bus = BUS;
-
-    fn transaction<R>(
-        &mut self,
-        f: impl FnOnce(&mut Self::Bus) -> Result<R, <Self::Bus as ErrorType>::Error>,
-    ) -> Result<R, Self::Error> {
-        self.cs.set_low().map_err(ExclusiveDeviceError::Cs)?;
-
-        delay(10_000);
-
-        let f_res = f(&mut self.bus);
-
-        // On failure, it's important to still flush and deassert CS.
-        let flush_res = self.bus.flush();
-
-        delay(10_000);
-        let cs_res = self.cs.set_high();
-
-        let f_res = f_res.map_err(ExclusiveDeviceError::Spi)?;
-        flush_res.map_err(ExclusiveDeviceError::Spi)?;
-        cs_res.map_err(ExclusiveDeviceError::Cs)?;
-
-        Ok(f_res)
     }
 }

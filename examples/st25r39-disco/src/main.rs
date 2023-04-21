@@ -5,8 +5,6 @@
 // Must go FIRST
 mod fmt;
 
-mod device;
-
 use defmt_rtt as _; // global logger
 use embassy_executor::Spawner;
 use embassy_stm32::dma::NoDma;
@@ -16,13 +14,12 @@ use embassy_stm32::rcc::{self};
 use embassy_stm32::spi::{Config, Phase, Polarity, Spi};
 use embassy_stm32::time::Hertz;
 use embassy_time::{Duration, Timer};
+use embedded_hal_bus::spi::ExclusiveDevice;
 use panic_probe as _;
 use rnfc::iso14443a::Poller;
 use rnfc::iso_dep::IsoDepA;
 use rnfc::traits::iso_dep::Reader;
 use rnfc_st25r39::{SpiInterface, St25r39, WakeupConfig, WakeupMethodConfig, WakeupPeriod, WakeupReference};
-
-use crate::device::ExclusiveDevice;
 
 #[embassy_executor::main]
 async fn main(_spawner: Spawner) {

@@ -1,19 +1,13 @@
 use cortex_m::asm::delay;
-use embedded_hal::spi::{SpiBus, SpiBusWrite, SpiDevice};
+use embedded_hal::spi::{Operation, SpiDevice};
 
 use super::Interface;
 
-pub struct SpiInterface<T: SpiDevice>
-where
-    T::Bus: SpiBus,
-{
+pub struct SpiInterface<T: SpiDevice> {
     spi: T,
 }
 
-impl<T: SpiDevice> SpiInterface<T>
-where
-    T::Bus: SpiBus,
-{
+impl<T: SpiDevice> SpiInterface<T> {
     pub fn new(spi: T) -> Self {
         Self { spi }
     }
@@ -38,10 +32,7 @@ where
     }
 }
 
-impl<T: SpiDevice> Interface for SpiInterface<T>
-where
-    T::Bus: SpiBus,
-{
+impl<T: SpiDevice> Interface for SpiInterface<T> {
     fn read_reg(&mut self, reg: usize) -> u8 {
         let reg = reg as u8;
         let res = if reg < 0x40 {
@@ -80,14 +71,11 @@ where
 
         delay(10_000);
 
+        data.fill(0x92);
+        data[data.len() - 1] = 0x80;
+
         self.spi
-            .transaction(|bus| {
-                bus.write(&[0x92])?;
-                data.fill(0x92);
-                data[data.len() - 1] = 0x80;
-                bus.transfer_in_place(data)?;
-                Ok(())
-            })
+            .transaction(&mut [Operation::Write(&[0x92]), Operation::TransferInPlace(data)])
             .unwrap();
 
         trace!("     read_fifo {=[u8]:02x}", data);
@@ -102,11 +90,7 @@ where
         delay(10_000);
 
         self.spi
-            .transaction(|bus| {
-                bus.write(&[0x12])?;
-                bus.write(data)?;
-                Ok(())
-            })
+            .transaction(&mut [Operation::Write(&[0x12]), Operation::Write(data)])
             .unwrap();
     }
 }

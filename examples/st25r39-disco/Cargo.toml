@@ -13,7 +13,7 @@ default = [
 rnfc-st25r39 = { path = "../../rnfc-st25r39", features = [ "defmt" ] }
 rnfc = { path = "../../rnfc", features = [ "defmt" ] }
 
-embassy-executor = { version = "0.1.0", features = ["defmt", "nightly", "integrated-timers"] }
+embassy-executor = { version = "0.1.0", features = ["defmt", "nightly", "integrated-timers", "arch-cortex-m", "executor-thread"] }
 embassy-time = { version = "0.1.0", features = ["defmt", "nightly", "defmt-timestamp-uptime", "tick-hz-32_768"] }
 embassy-futures = { version = "0.1.0" }
 embassy-stm32 = { version = "0.1.0", features = ["defmt", "nightly", "unstable-pac", "unstable-traits", "stm32l476vg", "memory-x", "time-driver-tim2", "exti"] }
@@ -24,6 +24,7 @@ defmt-rtt = "0.3.1"
 cortex-m = { version= "0.7.6", features = ["critical-section-single-core"] }
 cortex-m-rt = "0.7.0"
 embedded-hal = "1.0.0-alpha.9"
+embedded-hal-bus = { version = "0.1.0-alpha.2", features = ["defmt"] }
 panic-probe = { version = "0.3.0", features= ["print-defmt"] }
 futures = { version = "0.3.8", default-features = false, features = ["async-await"] }
 heapless = { version = "0.7.8", features=["defmt-impl"] }
@@ -67,8 +68,12 @@ opt-level = 0
 overflow-checks = false
 
 [patch.crates-io]
-embassy-executor = { git = "https://github.com/embassy-rs/embassy", rev = "b6663a013f8632cefbc6d6ab9a9aa7afbcd1314b" }
-embassy-time = { git = "https://github.com/embassy-rs/embassy", rev = "b6663a013f8632cefbc6d6ab9a9aa7afbcd1314b" }
-embassy-futures = { git = "https://github.com/embassy-rs/embassy", rev = "b6663a013f8632cefbc6d6ab9a9aa7afbcd1314b" }
-embassy-macros = { git = "https://github.com/embassy-rs/embassy", rev = "b6663a013f8632cefbc6d6ab9a9aa7afbcd1314b" }
-embassy-stm32 = { git = "https://github.com/embassy-rs/embassy", rev = "b6663a013f8632cefbc6d6ab9a9aa7afbcd1314b" }
+embassy-executor = { git = "https://github.com/embassy-rs/embassy", rev = "fb27594b2eb2cca2aea25dd92a7b730c185b6ecc" }
+embassy-time = { git = "https://github.com/embassy-rs/embassy", rev = "fb27594b2eb2cca2aea25dd92a7b730c185b6ecc" }
+embassy-futures = { git = "https://github.com/embassy-rs/embassy", rev = "fb27594b2eb2cca2aea25dd92a7b730c185b6ecc" }
+embassy-macros = { git = "https://github.com/embassy-rs/embassy", rev = "fb27594b2eb2cca2aea25dd92a7b730c185b6ecc" }
+embassy-stm32 = { git = "https://github.com/embassy-rs/embassy", rev = "fb27594b2eb2cca2aea25dd92a7b730c185b6ecc" }
+embedded-hal-bus = { git = "https://github.com/rust-embedded/embedded-hal", rev = "ddd6c42c91295d49d611a85a03690a34d8dc7c9e" }
+embedded-hal = { git = "https://github.com/rust-embedded/embedded-hal", rev = "ddd6c42c91295d49d611a85a03690a34d8dc7c9e" }
+embedded-hal-async = { git = "https://github.com/rust-embedded/embedded-hal", rev = "ddd6c42c91295d49d611a85a03690a34d8dc7c9e" }
+embedded-hal-nb = { git = "https://github.com/rust-embedded/embedded-hal", rev = "ddd6c42c91295d49d611a85a03690a34d8dc7c9e" }
