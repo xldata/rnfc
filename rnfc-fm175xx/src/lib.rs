@@ -100,6 +100,20 @@ where
         //});
     }
 
+    pub async fn sleep(&mut self) {
+        self.on().await;
+
+        // lpcd disable
+        self.regs().lpcd_ctrl1().write(|w| {
+            w.set_bit_ctrl_set(false); // clear bits written with 1
+            w.set_en(true); // EN=0
+        });
+
+        Timer::after(Duration::from_millis(1)).await; // give time for softreset
+
+        self.off();
+    }
+
     pub async fn wait_for_card(&mut self, config: WakeupConfig) -> Result<(), Infallible> {
         assert!((1..=15).contains(&config.sleep_time));
         assert!((2..=31).contains(&config.prepare_time));
