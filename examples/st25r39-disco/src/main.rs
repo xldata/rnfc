@@ -5,7 +5,10 @@
 // Must go FIRST
 mod fmt;
 
-use defmt_rtt as _; // global logger
+use core::cell::RefCell;
+
+use embassy_embedded_hal::shared_bus::blocking::spi::SpiDevice;
+// global logger
 use embassy_executor::Spawner;
 use embassy_stm32::dma::NoDma;
 use embassy_stm32::exti::ExtiInput;
@@ -13,13 +16,14 @@ use embassy_stm32::gpio::{Input, Level, Output, Pull, Speed};
 use embassy_stm32::rcc::{self};
 use embassy_stm32::spi::{Config, Phase, Polarity, Spi};
 use embassy_stm32::time::Hertz;
+use embassy_sync::blocking_mutex::raw::NoopRawMutex;
+use embassy_sync::blocking_mutex::Mutex;
 use embassy_time::{Duration, Timer};
-use embedded_hal_bus::spi::ExclusiveDevice;
-use panic_probe as _;
 use rnfc::iso14443a::Poller;
 use rnfc::iso_dep::IsoDepA;
 use rnfc::traits::iso_dep::Reader;
 use rnfc_st25r39::{SpiInterface, St25r39, WakeupConfig, WakeupMethodConfig, WakeupPeriod, WakeupReference};
+use {defmt_rtt as _, panic_probe as _};
 
 #[embassy_executor::main]
 async fn main(_spawner: Spawner) {
@@ -41,9 +45,9 @@ async fn main(_spawner: Spawner) {
     config.mode.polarity = Polarity::IdleLow;
     config.mode.phase = Phase::CaptureOnSecondTransition;
     let spi_bus = Spi::new(p.SPI1, p.PA5, p.PA7, p.PE14, NoDma, NoDma, Hertz(1_000_000), config);
-
+    let spi_bus = Mutex::<NoopRawMutex, _>::new(RefCell::new(spi_bus));
     let cs = Output::new(p.PA4, Level::High, Speed::VeryHigh);
-    let spi_device = ExclusiveDevice::new(spi_bus, cs);
+    let spi_device = SpiDevice::new(&spi_bus, cs);
     let iface = SpiInterface::new(spi_device);
     let irq = ExtiInput::new(Input::new(p.PE15, Pull::None), p.EXTI15);
     let mut st = St25r39::new(iface, irq).await.unwrap();
