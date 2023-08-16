@@ -44,7 +44,8 @@ async fn main(_spawner: Spawner) {
     let mut config = Config::default();
     config.mode.polarity = Polarity::IdleLow;
     config.mode.phase = Phase::CaptureOnSecondTransition;
-    let spi_bus = Spi::new(p.SPI1, p.PA5, p.PA7, p.PE14, NoDma, NoDma, Hertz(1_000_000), config);
+    config.frequency = Hertz(1_000_000);
+    let spi_bus = Spi::new(p.SPI1, p.PA5, p.PA7, p.PE14, NoDma, NoDma, config);
     let spi_bus = Mutex::<NoopRawMutex, _>::new(RefCell::new(spi_bus));
     let cs = Output::new(p.PA4, Level::High, Speed::VeryHigh);
     let spi_device = SpiDevice::new(&spi_bus, cs);
