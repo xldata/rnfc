@@ -92,7 +92,7 @@ where
 {
     pub async fn new(iface: I, mut npd: NpdPin, irq: IrqPin) -> Self {
         npd.set_low().unwrap();
-        Timer::after(Duration::from_millis(5)).await; // ensure reset
+
         Self {
             iface,
             npd,
@@ -113,21 +113,25 @@ where
     }
 
     async fn on(&mut self) {
+        self.npd.set_low().unwrap();
+
+        // datasheet says reset takes 5ms.
+        Timer::after(Duration::from_millis(5)).await;
+
         self.npd.set_high().unwrap();
+
+        // datasheet doesn't say anything about time after reset, wait a bit just in case.
         Timer::after(Duration::from_millis(1)).await;
 
         debug!("softreset");
         self.regs().command().write(|w| w.set_command(regs::CommandVal::SOFTRESET));
         while self.regs().command().read().command() != regs::CommandVal::IDLE {}
 
+        // again, just in case
+        Timer::after(Duration::from_millis(1)).await;
+
         //let ver = self.regs().version().read();
         //debug!("IC version: {:02x}", ver);
-
-        // LPCD disable
-        //self.regs().lpcd_ctrl1().write(|w| {
-        //    w.set_bit_ctrl_set(false); // clear bits written with 1
-        //    w.set_en(true); // EN=0
-        //});
     }
 
     fn rf_on(&mut self) {
