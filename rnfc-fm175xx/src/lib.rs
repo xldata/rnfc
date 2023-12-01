@@ -163,13 +163,34 @@ where
     pub async fn sleep(&mut self) {
         self.on().await;
 
+        // lpcd reset
+        self.regs().lpcd_ctrl1().write(|w| {
+            w.set_bit_ctrl_set(false); // clear bits written with 1
+            w.set_rstn(true); // nRST=0
+            w.set_en(true); // EN=0
+            w.set_ie(true); // IE=0
+            w.set_calibra_en(true); // CALIBRA_EN=0
+        });
+        self.regs().lpcd_ctrl1().write(|w| {
+            w.set_bit_ctrl_set(true); // set bits written with 1
+            w.set_rstn(true); // nRST=1
+        });
+
         // lpcd disable
+        self.regs().lpcd_ctrl1().write(|w| {
+            w.set_bit_ctrl_set(false); // clear bits written with 1
+            w.set_rstn(true); // nRST=0
+            w.set_en(true); // EN=0
+            w.set_ie(true); // IE=0
+            w.set_calibra_en(true); // CALIBRA_EN=0
+        });
+
         self.regs().lpcd_ctrl1().write(|w| {
             w.set_bit_ctrl_set(false); // clear bits written with 1
             w.set_en(true); // EN=0
         });
 
-        Timer::after(Duration::from_millis(1)).await; // give time for softreset
+        Timer::after(Duration::from_millis(1)).await; // give it some time
 
         self.off();
     }
