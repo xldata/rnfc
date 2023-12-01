@@ -39,20 +39,6 @@ where
     pub async fn start_iso14443a(&mut self) -> Result<Iso14443a<I, NpdPin, IrqPin>, Error> {
         self.on().await;
 
-        self.regs().command().write(|w| {
-            w.set_powerdown(false);
-            w.set_rcvoff(false);
-        });
-
-        self.regs().txcontrol().write(|w| {
-            w.set_tx1rfen(true);
-            w.set_tx2rfen(true);
-            w.set_invtx2on(true);
-        });
-
-        // Field on guard time
-        Timer::after(Duration::from_millis(5)).await;
-
         self.regs().txmode().write(|w| {
             w.set_framing(regs::Framing::ISO14443A);
             w.set_speed(regs::Speed::_106KBPS);
@@ -62,16 +48,9 @@ where
             w.set_speed(regs::Speed::_106KBPS);
         });
         self.regs().modwidth().write_value(0x26);
-        self.regs().gsn().write(|w| {
-            w.set_cwgsn(8); // reset value: 8
-        });
-        self.regs().cwgsp().write(|w| {
-            w.set_cwgsp(32); // reset value: 32
-        });
         self.regs().control().write(|w| {
             w.set_initiator(true);
         });
-
         self.regs().rfcfg().write(|w| {
             w.set_rxgain(regs::Rxgain::_33DB);
         });
@@ -82,6 +61,11 @@ where
         self.regs().txauto().write(|w| {
             w.set_force100ask(true);
         });
+
+        self.rf_on();
+
+        // Field on guard time
+        Timer::after(Duration::from_millis(5)).await;
 
         Ok(Iso14443a { inner: self })
     }

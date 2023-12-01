@@ -17,6 +17,30 @@ use embedded_hal_async::digital::Wait;
 pub use interface::*;
 use regs::Regs;
 
+#[derive(Debug, Clone, Copy)]
+#[cfg_attr(feature = "defmt", derive(defmt::Format))]
+pub struct RfConfig {
+    /// NMOS carrier wave drive strength. 0..=15
+    pub n_drive_cw: u8,
+    /// NMOS carrier wave drive strength when modulating. 0..=15
+    pub n_drive_mod: u8,
+    /// PMOS carrier wave drive strength. 0..=63
+    pub p_drive_cw: u8,
+    /// PMOS carrier wave drive strength when modulating. 0..=63
+    pub p_drive_mod: u8,
+}
+
+impl Default for RfConfig {
+    fn default() -> Self {
+        Self {
+            n_drive_cw: 8,
+            n_drive_mod: 8,
+            p_drive_cw: 32,
+            p_drive_mod: 32,
+        }
+    }
+}
+
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub struct WakeupConfig {
@@ -57,6 +81,7 @@ pub struct Fm175xx<I, NpdPin, IrqPin> {
     iface: I,
     npd: NpdPin,
     irq: IrqPin,
+    config: RfConfig,
 }
 
 impl<I, NpdPin, IrqPin> Fm175xx<I, NpdPin, IrqPin>
@@ -68,7 +93,12 @@ where
     pub async fn new(iface: I, mut npd: NpdPin, irq: IrqPin) -> Self {
         npd.set_low().unwrap();
         Timer::after(Duration::from_millis(5)).await; // ensure reset
-        Self { iface, npd, irq }
+        Self {
+            iface,
+            npd,
+            irq,
+            config: Default::default(),
+        }
     }
 
     fn regs(&mut self) -> Regs<I> {
@@ -98,6 +128,32 @@ where
         //    w.set_bit_ctrl_set(false); // clear bits written with 1
         //    w.set_en(true); // EN=0
         //});
+    }
+
+    fn rf_on(&mut self) {
+        let config = self.config;
+
+        self.regs().gsn().write(|w| {
+            w.set_cwgsn(config.n_drive_cw); // reset value: 8
+            w.set_modgsn(config.n_drive_mod); // reset value: 8
+        });
+        self.regs().cwgsp().write(|w| {
+            w.set_cwgsp(config.p_drive_cw); // reset value: 32
+        });
+        self.regs().modgsp().write(|w| {
+            w.set_modgsp(config.p_drive_mod); // reset value: 32
+        });
+
+        self.regs().command().write(|w| {
+            w.set_powerdown(false);
+            w.set_rcvoff(false);
+        });
+
+        self.regs().txcontrol().write(|w| {
+            w.set_tx1rfen(true);
+            w.set_tx2rfen(true);
+            w.set_invtx2on(true);
+        });
     }
 
     pub async fn sleep(&mut self) {
@@ -419,6 +475,10 @@ where
     pub fn raw(&mut self) -> Raw<'_, I, NpdPin, IrqPin> {
         Raw { inner: self }
     }
+
+    pub fn set_config(&mut self, config: RfConfig) {
+        self.config = config;
+    }
 }
 
 /// Find lowest value in min..max (min included, max excluded)
@@ -462,17 +522,7 @@ where
 {
     pub async fn field_on(&mut self) -> Result<(), Infallible> {
         self.inner.on().await;
-
-        self.inner.regs().command().write(|w| {
-            w.set_powerdown(false);
-            w.set_rcvoff(false);
-        });
-
-        self.inner.regs().txcontrol().write(|w| {
-            w.set_tx1rfen(true);
-            w.set_tx2rfen(true);
-            w.set_invtx2on(true);
-        });
+        self.inner.rf_on();
 
         Ok(())
     }
