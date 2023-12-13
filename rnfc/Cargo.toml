@@ -4,11 +4,10 @@ version = "0.1.0"
 edition = "2021"
 
 [features]
-defmt = ["dep:defmt", "rnfc-traits/defmt", "heapless/defmt-impl"]
+defmt = ["dep:defmt", "rnfc-traits/defmt", "heapless/defmt-03"]
 
 [dependencies]
 rnfc-traits = { version = "0.1.0", path = "../rnfc-traits" }
 defmt = { version = "0.3", optional = true }
 log = { version = "0.4.14", optional = true }
-
-heapless = { version = "0.7.1", default-features = false } 
+heapless = "0.8"
