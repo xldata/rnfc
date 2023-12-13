@@ -1,6 +1,5 @@
 #![no_std]
-#![feature(async_fn_in_trait, impl_trait_projections)]
-#![allow(incomplete_features)]
+#![allow(async_fn_in_trait)]
 #![deny(unused_must_use)]
 
 // This must go FIRST so that other mods see its macros.

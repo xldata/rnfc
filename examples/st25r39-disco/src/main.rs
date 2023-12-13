@@ -13,7 +13,6 @@ use embassy_executor::Spawner;
 use embassy_stm32::dma::NoDma;
 use embassy_stm32::exti::ExtiInput;
 use embassy_stm32::gpio::{Input, Level, Output, Pull, Speed};
-use embassy_stm32::rcc::{self};
 use embassy_stm32::spi::{Config, Phase, Polarity, Spi};
 use embassy_stm32::time::Hertz;
 use embassy_sync::blocking_mutex::raw::NoopRawMutex;
@@ -30,13 +29,19 @@ async fn main(_spawner: Spawner) {
     info!("Hello World!");
 
     let mut config = embassy_stm32::Config::default();
-    config.rcc.mux = rcc::ClockSrc::PLL(
-        rcc::PLLSource::HSI16,
-        rcc::PLLClkDiv::Div2,
-        rcc::PLLSrcDiv::Div1,
-        rcc::PLLMul::Mul8,
-        None,
-    );
+    {
+        use embassy_stm32::rcc::*;
+        config.rcc.hsi = true;
+        config.rcc.mux = ClockSrc::PLL1_R;
+        config.rcc.pll = Some(Pll {
+            source: PllSource::HSI,
+            prediv: PllPreDiv::DIV1,
+            mul: PllMul::MUL8,
+            divp: None,
+            divq: None,
+            divr: Some(PllRDiv::DIV2),
+        });
+    }
     let p = embassy_stm32::init(config);
 
     //let mut led = Output::new(p.PC4, Level::High, Speed::Low);

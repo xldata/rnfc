@@ -14,5 +14,5 @@ embassy-time = { version = "0.1.0" }
 embassy-futures = { version = "0.1.0" }
 rnfc-traits = { version = "0.1.0", path = "../rnfc-traits" }
 heapless = { version = "0.7.1", default-features = false } 
-embedded-hal = { version = "1.0.0-rc.1" }
-embedded-hal-async = { version = "1.0.0-rc.1" }
+embedded-hal = { version = "1.0.0-rc.2" }
+embedded-hal-async = { version = "1.0.0-rc.2" }
