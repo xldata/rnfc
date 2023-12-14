@@ -25,7 +25,7 @@ defmt-rtt = "0.3.1"
 
 cortex-m = { version= "0.7.6", features = ["critical-section-single-core"] }
 cortex-m-rt = "0.7.0"
-embedded-hal = { version = "1.0.0-rc.2" }
+embedded-hal = { version = "1.0.0-rc.3" }
 panic-probe = { version = "0.3.0", features= ["print-defmt"] }
 futures = { version = "0.3.8", default-features = false, features = ["async-await"] }
 heapless = { version = "0.8", features=["defmt-03"] }
@@ -69,10 +69,10 @@ opt-level = 0
 overflow-checks = false
 
 [patch.crates-io]
-embassy-executor = { git = "https://github.com/embassy-rs/embassy", rev = "915423fc63f209059a2242fbc3ad3b88d796514f" }
-embassy-executor-macros = { git = "https://github.com/embassy-rs/embassy", rev = "915423fc63f209059a2242fbc3ad3b88d796514f" }
-embassy-time = { git = "https://github.com/embassy-rs/embassy", rev = "915423fc63f209059a2242fbc3ad3b88d796514f" }
-embassy-futures = { git = "https://github.com/embassy-rs/embassy", rev = "915423fc63f209059a2242fbc3ad3b88d796514f" }
-embassy-stm32 = { git = "https://github.com/embassy-rs/embassy", rev = "915423fc63f209059a2242fbc3ad3b88d796514f" }
-embassy-embedded-hal = { git = "https://github.com/embassy-rs/embassy", rev = "915423fc63f209059a2242fbc3ad3b88d796514f" }
-embassy-sync = { git = "https://github.com/embassy-rs/embassy", rev = "915423fc63f209059a2242fbc3ad3b88d796514f" }
+embassy-executor = { git = "https://github.com/embassy-rs/embassy", rev = "e8a4ea2fefef5b8320ccced8a15e6de6456708d2" }
+embassy-executor-macros = { git = "https://github.com/embassy-rs/embassy", rev = "e8a4ea2fefef5b8320ccced8a15e6de6456708d2" }
+embassy-time = { git = "https://github.com/embassy-rs/embassy", rev = "e8a4ea2fefef5b8320ccced8a15e6de6456708d2" }
+embassy-futures = { git = "https://github.com/embassy-rs/embassy", rev = "e8a4ea2fefef5b8320ccced8a15e6de6456708d2" }
+embassy-stm32 = { git = "https://github.com/embassy-rs/embassy", rev = "e8a4ea2fefef5b8320ccced8a15e6de6456708d2" }
+embassy-embedded-hal = { git = "https://github.com/embassy-rs/embassy", rev = "e8a4ea2fefef5b8320ccced8a15e6de6456708d2" }
+embassy-sync = { git = "https://github.com/embassy-rs/embassy", rev = "e8a4ea2fefef5b8320ccced8a15e6de6456708d2" }
