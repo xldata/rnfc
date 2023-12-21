@@ -1,0 +1,10 @@
+[package]
+name = "rnfc-acr122u"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+hex-literal = "0.4.1"
+log = "0.4.20"
+nusb = "0.1.2"
+rnfc-traits = { path = "../rnfc-traits" }
