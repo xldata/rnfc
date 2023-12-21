@@ -1,3 +1,5 @@
+use core::fmt::Debug;
+
 use embassy_time::{with_timeout, Duration, Timer};
 use rnfc_traits::iso14443a_ll as ll;
 
@@ -22,7 +24,7 @@ pub enum Error<T> {
     FifoUnderflow,
 }
 
-impl<T> ll::Error for Error<T> {
+impl<T: Debug> ll::Error for Error<T> {
     fn kind(&self) -> ll::ErrorKind {
         match self {
             Self::Timeout => ll::ErrorKind::NoResponse,

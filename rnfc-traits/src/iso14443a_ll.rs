@@ -1,3 +1,5 @@
+use core::fmt::Debug;
+
 #[derive(Debug)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub enum Frame {
@@ -15,7 +17,7 @@ pub enum ErrorKind {
     NoResponse,
 }
 
-pub trait Error {
+pub trait Error: Debug {
     fn kind(&self) -> ErrorKind;
 }
 

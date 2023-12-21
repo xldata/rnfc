@@ -1,7 +1,9 @@
+use core::fmt::Debug;
+
 pub const UID_MAX_LEN: usize = 10;
 
 pub trait Reader {
-    type Error;
+    type Error: Debug;
 
     async fn transceive(&mut self, tx: &[u8], rx: &mut [u8]) -> Result<usize, Self::Error>;
 
