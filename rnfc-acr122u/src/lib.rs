@@ -69,7 +69,15 @@ impl Device {
         self.transfer(Vec::from(hex!("6f050000000000000000 ff00510000"))).await?;
 
         // GetFirmwareVersion
-        self.pn53x_cmd(0x02, &[]).await?;
+        // This seems to "abort" previous command, retry it a few times?
+        let mut res = Ok(());
+        for _ in 0..3 {
+            res = self.pn53x_cmd(0x02, &[]).await.map(|_| ());
+            if res.is_ok() {
+                break;
+            }
+        }
+        res?;
 
         // SetParameters: Enable auto-RATS, auto-ATR_RES
         self.pn53x_cmd(0x12, &[0x14]).await?;
