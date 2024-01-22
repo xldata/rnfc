@@ -11,8 +11,8 @@ default = ["defmt"]
 rnfc = { path = "../../rnfc", features=["defmt"]}
 rnfc-traits = { path = "../../rnfc-traits", features=["defmt"]}
 rnfc-fm175xx = { path = "../../rnfc-fm175xx", features=["defmt"]}
-embassy-executor = { version = "0.4.0", features = ["defmt", "nightly", "integrated-timers", "arch-cortex-m", "executor-thread"] }
-embassy-time = { version = "0.2.0", features = ["defmt"] }
+embassy-executor = { version = "0.5.0", features = ["defmt", "nightly", "integrated-timers", "arch-cortex-m", "executor-thread"] }
+embassy-time = { version = "0.3.0", features = ["defmt"] }
 embassy-futures = { version = "0.1.0" }
 embassy-nrf = { version = "0.1.0", features = ["defmt", "unstable-pac", "nrf52840", "time-driver-rtc1", "gpiote"] }
 
@@ -60,8 +60,8 @@ opt-level = 0
 overflow-checks = false
 
 [patch.crates-io]
-embassy-executor = { git = "https://github.com/embassy-rs/embassy", rev = "23406716750f4550d7354e9c1b36705af6812267" }
-embassy-executor-macros = { git = "https://github.com/embassy-rs/embassy", rev = "23406716750f4550d7354e9c1b36705af6812267" }
-embassy-time = { git = "https://github.com/embassy-rs/embassy", rev = "23406716750f4550d7354e9c1b36705af6812267" }
-embassy-futures = { git = "https://github.com/embassy-rs/embassy", rev = "23406716750f4550d7354e9c1b36705af6812267" }
-embassy-nrf = { git = "https://github.com/embassy-rs/embassy", rev = "23406716750f4550d7354e9c1b36705af6812267" }
+embassy-executor = { git = "https://github.com/embassy-rs/embassy", rev = "20fd03a14f1261e7b2264dcbca8e164393e66b94" }
+embassy-executor-macros = { git = "https://github.com/embassy-rs/embassy", rev = "20fd03a14f1261e7b2264dcbca8e164393e66b94" }
+embassy-time = { git = "https://github.com/embassy-rs/embassy", rev = "20fd03a14f1261e7b2264dcbca8e164393e66b94" }
+embassy-futures = { git = "https://github.com/embassy-rs/embassy", rev = "20fd03a14f1261e7b2264dcbca8e164393e66b94" }
+embassy-nrf = { git = "https://github.com/embassy-rs/embassy", rev = "20fd03a14f1261e7b2264dcbca8e164393e66b94" }

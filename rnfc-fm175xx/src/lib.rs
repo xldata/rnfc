@@ -189,6 +189,10 @@ where
             w.set_en(true); // EN=0
         });
 
+        self.regs().lpcd_ctrl3().write(|w| {
+            w.set_hpden(false);
+        });
+
         Timer::after(Duration::from_millis(1)).await; // give it some time
 
         self.off();
