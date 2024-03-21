@@ -516,7 +516,7 @@ impl<I: Interface, IrqPin: InputPin + Wait> St25r39<I, IrqPin> {
         if let Some(m) = config.capacitive {
             debug!("capacitance calibrating...");
             let val = self.calibrate_capacitance().await?;
-            debug!("capacitance calibrated: {}", val);
+            info!("capacitance calibrated: {}", val);
 
             let mut conf = regs::CapacitanceMeasureConf(0);
             conf.set_cm_d(m.delta);
