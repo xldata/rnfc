@@ -60,8 +60,8 @@ opt-level = 0
 overflow-checks = false
 
 [patch.crates-io]
-embassy-executor = { git = "https://github.com/embassy-rs/embassy", rev = "20fd03a14f1261e7b2264dcbca8e164393e66b94" }
-embassy-executor-macros = { git = "https://github.com/embassy-rs/embassy", rev = "20fd03a14f1261e7b2264dcbca8e164393e66b94" }
-embassy-time = { git = "https://github.com/embassy-rs/embassy", rev = "20fd03a14f1261e7b2264dcbca8e164393e66b94" }
-embassy-futures = { git = "https://github.com/embassy-rs/embassy", rev = "20fd03a14f1261e7b2264dcbca8e164393e66b94" }
-embassy-nrf = { git = "https://github.com/embassy-rs/embassy", rev = "20fd03a14f1261e7b2264dcbca8e164393e66b94" }
+embassy-executor = { git = "https://github.com/embassy-rs/embassy", rev = "29d388042cdbd76d46f66ebe58cc580edb4515f8" }
+embassy-executor-macros = { git = "https://github.com/embassy-rs/embassy", rev = "29d388042cdbd76d46f66ebe58cc580edb4515f8" }
+embassy-time = { git = "https://github.com/embassy-rs/embassy", rev = "29d388042cdbd76d46f66ebe58cc580edb4515f8" }
+embassy-futures = { git = "https://github.com/embassy-rs/embassy", rev = "29d388042cdbd76d46f66ebe58cc580edb4515f8" }
+embassy-nrf = { git = "https://github.com/embassy-rs/embassy", rev = "29d388042cdbd76d46f66ebe58cc580edb4515f8" }

@@ -1,6 +1,6 @@
 #![no_std]
 #![no_main]
-#![feature(type_alias_impl_trait)]
+#![feature(impl_trait_in_assoc_type)]
 
 // Must go FIRST
 mod fmt;
@@ -12,7 +12,7 @@ use embassy_embedded_hal::shared_bus::blocking::spi::SpiDevice;
 use embassy_executor::Spawner;
 use embassy_stm32::dma::NoDma;
 use embassy_stm32::exti::ExtiInput;
-use embassy_stm32::gpio::{Input, Level, Output, Pull, Speed};
+use embassy_stm32::gpio::{Level, Output, Pull, Speed};
 use embassy_stm32::spi::{Config, Phase, Polarity, Spi};
 use embassy_stm32::time::Hertz;
 use embassy_sync::blocking_mutex::raw::NoopRawMutex;
@@ -32,7 +32,7 @@ async fn main(_spawner: Spawner) {
     {
         use embassy_stm32::rcc::*;
         config.rcc.hsi = true;
-        config.rcc.mux = ClockSrc::PLL1_R;
+        config.rcc.sys = Sysclk::PLL1_R;
         config.rcc.pll = Some(Pll {
             source: PllSource::HSI,
             prediv: PllPreDiv::DIV1,
@@ -55,7 +55,7 @@ async fn main(_spawner: Spawner) {
     let cs = Output::new(p.PA4, Level::High, Speed::VeryHigh);
     let spi_device = SpiDevice::new(&spi_bus, cs);
     let iface = SpiInterface::new(spi_device);
-    let irq = ExtiInput::new(Input::new(p.PE15, Pull::None), p.EXTI15);
+    let irq = ExtiInput::new(p.PE15, p.EXTI15, Pull::None);
     let mut st = St25r39::new(iface, irq).await.unwrap();
 
     let config = WakeupConfig {
