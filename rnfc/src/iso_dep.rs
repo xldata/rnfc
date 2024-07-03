@@ -146,7 +146,8 @@ impl<T: Iso14443aReader> IsoDepReader for IsoDepA<T> {
 
         // TODO this checks the spinny bit is equal, is this guaranteed?
         if rx_pcb != tx_pcb {
-            panic!("Receiving chaining, R-blocks or S-blocks is TODO");
+            warn!("Receiving chaining, R-blocks or S-blocks is TODO");
+            return Err(Error::Protocol);
         }
 
         let rx_inf_len = rx_len - 1;
