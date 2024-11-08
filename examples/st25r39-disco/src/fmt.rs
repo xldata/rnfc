@@ -6,6 +6,13 @@ use core::fmt::{Debug, Display, LowerHex};
 #[cfg(all(feature = "defmt", feature = "log"))]
 compile_error!("You may not enable both `defmt` and `log` features.");
 
+#[cfg(not(feature = "defmt"))]
+pub use core::fmt::Debug as Format;
+
+#[cfg(feature = "defmt")]
+pub use defmt::Format;
+
+#[collapse_debuginfo(yes)]
 macro_rules! assert {
     ($($x:tt)*) => {
         {
@@ -17,6 +24,7 @@ macro_rules! assert {
     };
 }
 
+#[collapse_debuginfo(yes)]
 macro_rules! assert_eq {
     ($($x:tt)*) => {
         {
@@ -28,6 +36,7 @@ macro_rules! assert_eq {
     };
 }
 
+#[collapse_debuginfo(yes)]
 macro_rules! assert_ne {
     ($($x:tt)*) => {
         {
@@ -39,6 +48,7 @@ macro_rules! assert_ne {
     };
 }
 
+#[collapse_debuginfo(yes)]
 macro_rules! debug_assert {
     ($($x:tt)*) => {
         {
@@ -50,6 +60,7 @@ macro_rules! debug_assert {
     };
 }
 
+#[collapse_debuginfo(yes)]
 macro_rules! debug_assert_eq {
     ($($x:tt)*) => {
         {
@@ -61,6 +72,7 @@ macro_rules! debug_assert_eq {
     };
 }
 
+#[collapse_debuginfo(yes)]
 macro_rules! debug_assert_ne {
     ($($x:tt)*) => {
         {
@@ -72,6 +84,7 @@ macro_rules! debug_assert_ne {
     };
 }
 
+#[collapse_debuginfo(yes)]
 macro_rules! todo {
     ($($x:tt)*) => {
         {
@@ -83,20 +96,19 @@ macro_rules! todo {
     };
 }
 
-#[cfg(not(feature = "defmt"))]
+#[collapse_debuginfo(yes)]
 macro_rules! unreachable {
     ($($x:tt)*) => {
-        ::core::unreachable!($($x)*)
+        {
+            #[cfg(not(feature = "defmt"))]
+            ::core::unreachable!($($x)*);
+            #[cfg(feature = "defmt")]
+            ::defmt::unreachable!($($x)*);
+        }
     };
 }
 
-#[cfg(feature = "defmt")]
-macro_rules! unreachable {
-    ($($x:tt)*) => {
-        ::defmt::unreachable!($($x)*)
-    };
-}
-
+#[collapse_debuginfo(yes)]
 macro_rules! panic {
     ($($x:tt)*) => {
         {
@@ -108,6 +120,7 @@ macro_rules! panic {
     };
 }
 
+#[collapse_debuginfo(yes)]
 macro_rules! trace {
     ($s:literal $(, $x:expr)* $(,)?) => {
         {
@@ -121,6 +134,7 @@ macro_rules! trace {
     };
 }
 
+#[collapse_debuginfo(yes)]
 macro_rules! debug {
     ($s:literal $(, $x:expr)* $(,)?) => {
         {
@@ -134,6 +148,7 @@ macro_rules! debug {
     };
 }
 
+#[collapse_debuginfo(yes)]
 macro_rules! info {
     ($s:literal $(, $x:expr)* $(,)?) => {
         {
@@ -147,6 +162,7 @@ macro_rules! info {
     };
 }
 
+#[collapse_debuginfo(yes)]
 macro_rules! warn {
     ($s:literal $(, $x:expr)* $(,)?) => {
         {
@@ -160,6 +176,7 @@ macro_rules! warn {
     };
 }
 
+#[collapse_debuginfo(yes)]
 macro_rules! error {
     ($s:literal $(, $x:expr)* $(,)?) => {
         {
@@ -174,6 +191,7 @@ macro_rules! error {
 }
 
 #[cfg(feature = "defmt")]
+#[collapse_debuginfo(yes)]
 macro_rules! unwrap {
     ($($x:tt)*) => {
         ::defmt::unwrap!($($x)*)
@@ -181,6 +199,7 @@ macro_rules! unwrap {
 }
 
 #[cfg(not(feature = "defmt"))]
+#[collapse_debuginfo(yes)]
 macro_rules! unwrap {
     ($arg:expr) => {
         match $crate::fmt::Try::into_result($arg) {
