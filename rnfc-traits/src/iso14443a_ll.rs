@@ -15,7 +15,8 @@ pub enum Frame {
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub enum ErrorKind {
     Other,
-    NoResponse,
+    Timeout,
+    Corruption,
 }
 
 pub trait Error: Debug {

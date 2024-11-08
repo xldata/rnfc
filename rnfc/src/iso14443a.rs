@@ -37,7 +37,7 @@ pub enum Error<T> {
 impl<T: ll::Error> Error<T> {
     fn is_soft(&self) -> bool {
         match self {
-            Self::Lower(l) => l.kind() == ll::ErrorKind::NoResponse,
+            Self::Lower(l) => l.kind() == ll::ErrorKind::Timeout,
             Self::Protocol => true,
         }
     }

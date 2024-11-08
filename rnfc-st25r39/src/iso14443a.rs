@@ -28,7 +28,7 @@ pub enum Error<T> {
 impl<T: Debug> ll::Error for Error<T> {
     fn kind(&self) -> ll::ErrorKind {
         match self {
-            Self::Timeout => ll::ErrorKind::NoResponse,
+            Self::Timeout => ll::ErrorKind::Timeout,
             _ => ll::ErrorKind::Other,
         }
     }

@@ -186,7 +186,7 @@ where
                 Err(e) => {
                     warn!("isodep: got error {:?}", e);
                     match e.kind() {
-                        ErrorKind::NoResponse => {
+                        ErrorKind::Timeout | ErrorKind::Corruption => {
                             retries += 1;
                             if retries >= 10 {
                                 return Err(Error::Communication);
@@ -285,7 +285,7 @@ mod test {
             Ok(&hex_literal::hex!($rx))
         };
         (@res timeout) => {
-            Err(ErrorKind::NoResponse)
+            Err(ErrorKind::Timeout)
         };
         ($($tx:literal => $rx:tt,)*) => {
             MockReader {

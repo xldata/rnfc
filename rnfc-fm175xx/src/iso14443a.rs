@@ -12,13 +12,19 @@ use crate::{regs, Fm175xx, Interface, FIFO_SIZE};
 pub enum Error {
     Other,
     Timeout,
+    Crc,
+    Protocol,
+    Collision,
 }
 
 impl ll::Error for Error {
     fn kind(&self) -> ll::ErrorKind {
         match self {
-            Error::Timeout => ll::ErrorKind::NoResponse,
-            _ => ll::ErrorKind::Other,
+            Error::Other => ll::ErrorKind::Other,
+            Error::Timeout => ll::ErrorKind::Timeout,
+            Error::Protocol => ll::ErrorKind::Corruption,
+            Error::Crc => ll::ErrorKind::Corruption,
+            Error::Collision => ll::ErrorKind::Corruption,
         }
     }
 }
@@ -190,19 +196,19 @@ where
                 }
                 if errs.crcerr() {
                     warn!("err: bad CRC");
-                    return Err(Error::Other);
+                    return Err(Error::Crc);
                 }
-                //if errs.parityerr() && !collision {
-                //    warn!("err: parity");
-                //    return Err(Error::Other);
-                //}
+                if errs.parityerr() && !collision {
+                    warn!("err: parity");
+                    return Err(Error::Crc);
+                }
                 if errs.proterr() {
                     warn!("err: protocol");
-                    return Err(Error::Other);
+                    return Err(Error::Protocol);
                 }
                 if errs.rferr() {
                     warn!("err: rf");
-                    return Err(Error::Other);
+                    return Err(Error::Protocol);
                 }
                 if errs.temperr() {
                     warn!("err: temperature");
@@ -264,7 +270,7 @@ where
                 let coll = r.regs().coll().read();
                 if coll.collposnotvalid() {
                     warn!("collision position out of range");
-                    return Err(Error::Other);
+                    return Err(Error::Protocol);
                 }
 
                 let mut collpos = coll.collpos() as usize;
@@ -281,7 +287,9 @@ where
 
             Ok(total_bits)
         } else {
-            // TODO: error on collision if not anticollision frame.
+            if collision {
+                return Err(Error::Collision);
+            }
             debug!("RX: {:02x}", Bytes(&rx[..rx_pos]));
             Ok(rx_pos * 8)
         }
