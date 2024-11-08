@@ -8,7 +8,6 @@ mod fmt;
 use core::cell::RefCell;
 
 use embassy_embedded_hal::shared_bus::blocking::spi::SpiDevice;
-// global logger
 use embassy_executor::Spawner;
 use embassy_stm32::exti::ExtiInput;
 use embassy_stm32::gpio::{Level, Output, Pull, Speed};
