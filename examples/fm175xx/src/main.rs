@@ -9,7 +9,7 @@ use embassy_executor::Spawner;
 use embassy_nrf::config::LfclkSource;
 use embassy_nrf::gpio::{Flex, Input, Level, Output, OutputDrive, Pull};
 use embassy_nrf::twim::{self, Twim};
-use embassy_nrf::{bind_interrupts, pac, peripherals};
+use embassy_nrf::{bind_interrupts, peripherals};
 use embassy_time::Duration;
 use rnfc::iso14443a::Poller;
 use rnfc::iso_dep::IsoDepA;
@@ -27,44 +27,6 @@ async fn main(_spawner: Spawner) {
     //config.hfclk_source = HfclkSource::ExternalXtal;
     config.lfclk_source = LfclkSource::ExternalXtal;
     let p = embassy_nrf::init(config);
-
-    unsafe {
-        let nvmc = &*pac::NVMC::ptr();
-        let power = &*pac::POWER::ptr();
-
-        // SET NFCPINS = 0 to use them as GPIOs
-        if *(0x1000120C as *mut u32) & 1 != 0 {
-            nvmc.config.write(|w| w.wen().wen());
-            while nvmc.ready.read().ready().is_busy() {}
-            core::ptr::write_volatile(0x1000120C as *mut u32, !1);
-            while nvmc.ready.read().ready().is_busy() {}
-            nvmc.config.reset();
-            while nvmc.ready.read().ready().is_busy() {}
-            cortex_m::peripheral::SCB::sys_reset();
-        }
-
-        /*
-        // SET PSELRESET
-        const RESET_PIN: u32 = 21;
-        if *(0x10001200 as *mut u32) != RESET_PIN || *(0x10001204 as *mut u32) != RESET_PIN {
-            nvmc.config.write(|w| w.wen().wen());
-            while nvmc.ready.read().ready().is_busy() {}
-            core::ptr::write_volatile(0x10001200 as *mut u32, RESET_PIN);
-            while nvmc.ready.read().ready().is_busy() {}
-            core::ptr::write_volatile(0x10001204 as *mut u32, RESET_PIN);
-            while nvmc.ready.read().ready().is_busy() {}
-            nvmc.config.reset();
-            while nvmc.ready.read().ready().is_busy() {}
-            cortex_m::peripheral::SCB::sys_reset();
-        }
-         */
-
-        // Enable DC-DC
-        power.dcdcen.write(|w| w.dcdcen().enabled());
-
-        // Enable flash cache
-        nvmc.icachecnf.write(|w| w.cacheen().enabled());
-    }
 
     let npd = p.P0_15;
     let mut scl = p.P0_20;

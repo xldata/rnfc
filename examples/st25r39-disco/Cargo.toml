@@ -5,6 +5,7 @@ name = "rnfc-example-st25r39-disco"
 version = "0.1.0"
 
 [features]
+log = []
 default = [
  "defmt",
 ]
@@ -13,30 +14,22 @@ default = [
 rnfc-st25r39 = { path = "../../rnfc-st25r39", features = [ "defmt" ] }
 rnfc = { path = "../../rnfc", features = [ "defmt" ] }
 
-embassy-executor = { version = "0.5.0", features = ["defmt", "nightly", "integrated-timers", "arch-cortex-m", "executor-thread"] }
-embassy-time = { version = "0.3.0", features = ["defmt", "defmt-timestamp-uptime", "tick-hz-32_768"] }
+embassy-executor = { version = "0.6.2", features = ["defmt", "nightly", "integrated-timers", "arch-cortex-m", "executor-thread"] }
+embassy-time = { version = "0.3.2", features = ["defmt", "defmt-timestamp-uptime", "tick-hz-32_768"] }
 embassy-futures = { version = "0.1.0" }
-embassy-embedded-hal = { version = "0.1.0" }
-embassy-sync = { version = "0.5.0" }
+embassy-embedded-hal = { version = "0.2.0", features = ["defmt"]}
+embassy-sync = { version = "0.6.0" }
 embassy-stm32 = { version = "0.1.0", features = ["defmt", "unstable-pac", "stm32l476vg", "memory-x", "time-driver-tim2", "exti"] }
 
 defmt = { version = "0.3.0", optional = true }
-defmt-rtt = "0.3.1"
+defmt-rtt = "0.4.1"
 
 cortex-m = { version= "0.7.6", features = ["critical-section-single-core"] }
 cortex-m-rt = "0.7.0"
-embedded-hal = { version = "1.0.0-rc.3" }
 panic-probe = { version = "0.3.0", features= ["print-defmt"] }
 futures = { version = "0.3.8", default-features = false, features = ["async-await"] }
 heapless = { version = "0.8", features=["defmt-03"] }
 
-generic-array = { version = "0.14.4", default-features = false }
-aes = { version = "0.7.5", default-features = false }
-num_enum = { version = "0.5.4", default-features = false }
-block-modes = { version = "0.8.1", default-features = false }
-cmac = { version = "0.6.0", default-features = false }
-rand_core = { version = "0.6.3", default-features = false }
-crypto-mac = "0.11.1"
 
 [profile.dev]
 debug = 2
@@ -69,10 +62,10 @@ opt-level = 0
 overflow-checks = false
 
 [patch.crates-io]
-embassy-executor = { git = "https://github.com/embassy-rs/embassy", rev = "29d388042cdbd76d46f66ebe58cc580edb4515f8" }
-embassy-executor-macros = { git = "https://github.com/embassy-rs/embassy", rev = "29d388042cdbd76d46f66ebe58cc580edb4515f8" }
-embassy-time = { git = "https://github.com/embassy-rs/embassy", rev = "29d388042cdbd76d46f66ebe58cc580edb4515f8" }
-embassy-futures = { git = "https://github.com/embassy-rs/embassy", rev = "29d388042cdbd76d46f66ebe58cc580edb4515f8" }
-embassy-stm32 = { git = "https://github.com/embassy-rs/embassy", rev = "29d388042cdbd76d46f66ebe58cc580edb4515f8" }
-embassy-embedded-hal = { git = "https://github.com/embassy-rs/embassy", rev = "29d388042cdbd76d46f66ebe58cc580edb4515f8" }
-embassy-sync = { git = "https://github.com/embassy-rs/embassy", rev = "29d388042cdbd76d46f66ebe58cc580edb4515f8" }
+embassy-executor = { git = "https://github.com/embassy-rs/embassy", rev = "0de204ccd7fea064f1b2ad5f0830a9b8ff0a09a9" }
+embassy-executor-macros = { git = "https://github.com/embassy-rs/embassy", rev = "0de204ccd7fea064f1b2ad5f0830a9b8ff0a09a9" }
+embassy-time = { git = "https://github.com/embassy-rs/embassy", rev = "0de204ccd7fea064f1b2ad5f0830a9b8ff0a09a9" }
+embassy-futures = { git = "https://github.com/embassy-rs/embassy", rev = "0de204ccd7fea064f1b2ad5f0830a9b8ff0a09a9" }
+embassy-stm32 = { git = "https://github.com/embassy-rs/embassy", rev = "0de204ccd7fea064f1b2ad5f0830a9b8ff0a09a9" }
+embassy-embedded-hal = { git = "https://github.com/embassy-rs/embassy", rev = "0de204ccd7fea064f1b2ad5f0830a9b8ff0a09a9" }
+embassy-sync = { git = "https://github.com/embassy-rs/embassy", rev = "0de204ccd7fea064f1b2ad5f0830a9b8ff0a09a9" }

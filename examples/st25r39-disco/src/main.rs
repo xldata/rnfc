@@ -10,7 +10,6 @@ use core::cell::RefCell;
 use embassy_embedded_hal::shared_bus::blocking::spi::SpiDevice;
 // global logger
 use embassy_executor::Spawner;
-use embassy_stm32::dma::NoDma;
 use embassy_stm32::exti::ExtiInput;
 use embassy_stm32::gpio::{Level, Output, Pull, Speed};
 use embassy_stm32::spi::{Config, Phase, Polarity, Spi};
@@ -50,7 +49,7 @@ async fn main(_spawner: Spawner) {
     config.mode.polarity = Polarity::IdleLow;
     config.mode.phase = Phase::CaptureOnSecondTransition;
     config.frequency = Hertz(1_000_000);
-    let spi_bus = Spi::new(p.SPI1, p.PA5, p.PA7, p.PE14, NoDma, NoDma, config);
+    let spi_bus = Spi::new_blocking(p.SPI1, p.PA5, p.PA7, p.PE14, config);
     let spi_bus = Mutex::<NoopRawMutex, _>::new(RefCell::new(spi_bus));
     let cs = Output::new(p.PA4, Level::High, Speed::VeryHigh);
     let spi_device = SpiDevice::new(&spi_bus, cs);
