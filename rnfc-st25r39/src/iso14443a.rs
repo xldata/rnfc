@@ -3,6 +3,7 @@ use core::fmt::Debug;
 use embassy_time::{with_timeout, Timer};
 use rnfc_traits::iso14443a_ll as ll;
 
+use crate::fmt::Bytes;
 use crate::*;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -97,7 +98,7 @@ impl<'d, I: Interface + 'd, IrqPin: InputPin + Wait + 'd> ll::Reader for Iso1444
         let this = &mut *self.inner;
 
         Timer::after(Duration::from_millis(1)).await;
-        debug!("TX: {:?} {:02x}", opts, tx);
+        debug!("TX: {:?} {:02x}", opts, Bytes(tx));
 
         this.cmd(Command::Stop)?;
         this.cmd(Command::ResetRxgain)?;
@@ -219,7 +220,7 @@ impl<'d, I: Interface + 'd, IrqPin: InputPin + Wait + 'd> ll::Reader for Iso1444
             } else {
                 full_bytes * 8 + rx_bytes * 8
             };
-            debug!("RX: {:02x} bits: {}", rx, rx_bits);
+            debug!("RX: {:02x} bits: {}", Bytes(rx), rx_bits);
 
             Ok(rx_bits)
         } else {
@@ -236,7 +237,7 @@ impl<'d, I: Interface + 'd, IrqPin: InputPin + Wait + 'd> ll::Reader for Iso1444
             }
 
             this.iface.read_fifo(&mut rx[..rx_bytes]).map_err(Error::Interface)?;
-            debug!("RX: {:02x}", &rx[..rx_bytes]);
+            debug!("RX: {:02x}", Bytes(&rx[..rx_bytes]));
             Ok(rx_bytes * 8)
         }
     }

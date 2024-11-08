@@ -4,6 +4,7 @@ use embedded_hal::digital::{InputPin, OutputPin};
 use embedded_hal_async::digital::Wait;
 use rnfc_traits::iso14443a_ll as ll;
 
+use crate::fmt::Bytes;
 use crate::{regs, Fm175xx, Interface, FIFO_SIZE};
 
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]
@@ -91,7 +92,7 @@ where
     type Error = Error;
 
     async fn transceive(&mut self, tx: &[u8], rx: &mut [u8], opts: ll::Frame) -> Result<usize, Self::Error> {
-        debug!("TX: {:?} {:02x}", opts, tx);
+        debug!("TX: {:?} {:02x}", opts, Bytes(tx));
 
         let r = &mut *self.inner;
 
@@ -276,12 +277,12 @@ where
                 bits / 8 * 8 + rx_pos * 8
             };
 
-            debug!("RX: {:02x} bits: {}", rx, total_bits);
+            debug!("RX: {:02x} bits: {}", Bytes(rx), total_bits);
 
             Ok(total_bits)
         } else {
             // TODO: error on collision if not anticollision frame.
-            debug!("RX: {:02x}", &rx[..rx_pos]);
+            debug!("RX: {:02x}", Bytes(&rx[..rx_pos]));
             Ok(rx_pos * 8)
         }
     }

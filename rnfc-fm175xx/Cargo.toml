@@ -5,7 +5,7 @@ name = "rnfc-fm175xx"
 version = "0.1.0"
 
 [features]
-defmt = ["dep:defmt", "embassy-time/defmt"]
+defmt = ["dep:defmt", "embassy-time/defmt", "rnfc-traits/defmt"]
 
 [dependencies]
 rnfc-traits = { path = "../rnfc-traits" }

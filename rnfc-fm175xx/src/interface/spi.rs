@@ -2,6 +2,7 @@ use cortex_m::asm::delay;
 use embedded_hal::spi::{Operation, SpiDevice};
 
 use super::Interface;
+use crate::fmt::Bytes;
 
 pub struct SpiInterface<T: SpiDevice> {
     spi: T,
@@ -19,12 +20,12 @@ impl<T: SpiDevice> SpiInterface<T> {
         self.spi.transfer_in_place(&mut buf).unwrap();
         let res = buf[1];
 
-        //trace!("         read_raw {=u8:02x} = {=u8:02x}", reg, res);
+        //trace!("         read_raw {:02x} = {:02x}", reg, res);
         res
     }
 
     fn write_reg_raw(&mut self, reg: u8, val: u8) {
-        //trace!("         write_raw {=u8:02x} = {=u8:02x}", reg, val);
+        //trace!("         write_raw {:02x} = {:02x}", reg, val);
         delay(10_000);
 
         let buf = [(reg << 1), val];
@@ -45,13 +46,13 @@ impl<T: SpiDevice> Interface for SpiInterface<T> {
             self.read_reg_raw(0x0f) & 0x3F
         };
 
-        trace!("     read {=u8:02x} = {=u8:02x}", reg, res);
+        trace!("     read {:02x} = {:02x}", reg, res);
         res
     }
 
     fn write_reg(&mut self, reg: usize, val: u8) {
         let reg = reg as u8;
-        trace!("     write {=u8:02x} = {=u8:02x}", reg, val);
+        trace!("     write {:02x} = {:02x}", reg, val);
 
         if reg < 0x40 {
             // Main register
@@ -78,7 +79,7 @@ impl<T: SpiDevice> Interface for SpiInterface<T> {
             .transaction(&mut [Operation::Write(&[0x92]), Operation::TransferInPlace(data)])
             .unwrap();
 
-        trace!("     read_fifo {=[u8]:02x}", data);
+        trace!("     read_fifo {:02x}", Bytes(data));
     }
 
     fn write_fifo(&mut self, data: &[u8]) {
@@ -86,7 +87,7 @@ impl<T: SpiDevice> Interface for SpiInterface<T> {
             return;
         }
 
-        trace!("     write_fifo {=[u8]:02x}", data);
+        trace!("     write_fifo {:02x}", Bytes(data));
         delay(10_000);
 
         self.spi

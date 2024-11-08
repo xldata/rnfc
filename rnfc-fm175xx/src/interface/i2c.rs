@@ -1,6 +1,7 @@
 use embedded_hal::i2c::I2c;
 
 use super::Interface;
+use crate::fmt::Bytes;
 use crate::FIFO_SIZE;
 
 pub struct I2cInterface<T: I2c> {
@@ -36,13 +37,13 @@ impl<T: I2c> Interface for I2cInterface<T> {
             self.write_reg_raw(0x0f, reg | 0x80);
             self.read_reg_raw(0x0f) & 0x3F
         };
-        trace!("     read {=u8:02x} = {=u8:02x}", reg, res);
+        trace!("     read {:02x} = {:02x}", reg, res);
         res
     }
 
     fn write_reg(&mut self, reg: usize, val: u8) {
         let reg = reg as u8;
-        trace!("     write {=u8:02x} = {=u8:02x}", reg, val);
+        trace!("     write {:02x} = {:02x}", reg, val);
 
         if reg < 0x40 {
             // Main register
@@ -61,7 +62,7 @@ impl<T: I2c> Interface for I2cInterface<T> {
         }
 
         self.i2c.write_read(self.address, &[0x09], data).unwrap();
-        trace!("     read_fifo {=[u8]:02x}", data);
+        trace!("     read_fifo {:02x}", Bytes(data));
     }
 
     fn write_fifo(&mut self, data: &[u8]) {
@@ -75,6 +76,6 @@ impl<T: I2c> Interface for I2cInterface<T> {
         buf[0] = 0x09;
         buf[1..1 + data.len()].copy_from_slice(data);
         self.i2c.write(self.address, &buf[..1 + data.len()]).unwrap();
-        trace!("     write_fifo {=[u8]:02x}", data);
+        trace!("     write_fifo {:02x}", Bytes(data));
     }
 }

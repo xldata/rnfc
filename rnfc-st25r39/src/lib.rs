@@ -313,7 +313,7 @@ impl<I: Interface, IrqPin: InputPin + Wait> St25r39<I, IrqPin> {
         // Measure vdd
         trace!("measuring vdd...");
         let vdd_mv = self.measure_vdd().await?;
-        trace!("measure vdd result = {=u32}mv", vdd_mv);
+        trace!("measure vdd result = {}mv", vdd_mv);
 
         let sup3v = vdd_mv < 3600;
         if sup3v {
@@ -371,7 +371,7 @@ impl<I: Interface, IrqPin: InputPin + Wait> St25r39<I, IrqPin> {
         self.cmd_wait(Command::AdjustRegulators).await?;
 
         let res = self.regs().regulator_result().read()?.0;
-        trace!("reg result = {=u8}", res);
+        trace!("reg result = {}", res);
 
         Ok(())
     }

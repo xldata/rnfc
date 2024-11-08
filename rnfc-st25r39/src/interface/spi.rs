@@ -16,7 +16,7 @@ impl<T: SpiDevice> Interface for SpiInterface<T> {
     type Error = T::Error;
 
     fn do_command(&mut self, cmd: u8) -> Result<(), Self::Error> {
-        trace!("     cmd {=u8:x}", cmd);
+        trace!("     cmd {:02x}", cmd);
 
         let buf = [cmd];
         self.spi.write(&buf)
@@ -45,12 +45,12 @@ impl<T: SpiDevice> Interface for SpiInterface<T> {
             _ => panic!("Invalid reg {}", reg),
         };
 
-        trace!("     read {=u8:x} = {=u8:x}", reg, res);
+        trace!("     read {:02x} = {:02x}", reg, res);
         Ok(res)
     }
 
     fn write_reg(&mut self, reg: u8, val: u8) -> Result<(), Self::Error> {
-        trace!("     write {=u8:x} = {=u8:x}", reg, val);
+        trace!("     write {:02x} = {:02x}", reg, val);
 
         match reg {
             // Register space A

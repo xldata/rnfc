@@ -3,6 +3,8 @@ use rnfc_traits::iso14443a::{Reader, UID_MAX_LEN};
 use rnfc_traits::iso14443a_ll as ll;
 use rnfc_traits::iso14443a_ll::{Frame, Reader as LLReader};
 
+use crate::fmt::Bytes;
+
 macro_rules! retry {
     ($tries:literal, $expr:expr) => {{
         let mut tries = $tries;
@@ -183,7 +185,7 @@ impl<T: LLReader> Poller<T> {
             }
         }
 
-        debug!("Got card! uid={:02x} atqa={:02x} sak={:02x}", uid, atqa, sak);
+        debug!("Got card! uid={} atqa={} sak={:02}", Bytes(&uid), Bytes(&atqa), sak);
 
         Ok(Card {
             reader: &mut self.reader,
@@ -218,7 +220,7 @@ impl<T: LLReader> Poller<T> {
             sak = retry!(4, self.transceive_select(cl as u8, uid_part).await)?;
         }
 
-        debug!("Got card! uid={:02x} atqa={:02x} sak={:02x}", uid, atqa, sak);
+        debug!("Got card! uid={} atqa={} sak={:02}", Bytes(&uid), Bytes(&atqa), sak);
 
         Ok(Card {
             reader: &mut self.reader,
@@ -277,7 +279,7 @@ impl<T: LLReader> Poller<T> {
                 }
             }
 
-            debug!("Got card! uid={:02x} atqa={:02x} sak={:02x}", uid, atqa, sak);
+            debug!("Got card! uid={} atqa={} sak={:02}", Bytes(&uid), Bytes(&atqa), sak);
             let _ = self.transceive_hlta().await;
 
             if !res.contains(&uid) {
