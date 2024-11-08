@@ -444,7 +444,7 @@ where
             w.set_calibra_en(true); // calibra_en = 1
         });
 
-        //cortex_m::asm::delay(640_000); // 10ms
+        //cortex_m::asm::delay(640_000); // 100ms
 
         //info!("calib: waiting for irq..");
         while !self.regs().lpcd_irq().read().calib_irq() {}
@@ -468,11 +468,11 @@ where
         self.regs().fifolevel().write(|w| w.set_flushfifo(true));
     }
 
-    fn set_timer(&mut self, ms: u32) {
+    fn set_timer(&mut self, onefc: u32) {
         let mut prescaler: u32 = 0;
         let mut timereload: u32 = 0;
         while prescaler < 0xfff {
-            timereload = (ms * 13560 - 1) / (prescaler * 2 + 1);
+            timereload = (onefc - 1).div_ceil(prescaler * 2 + 1);
 
             if timereload < 0xffff {
                 break;
@@ -490,8 +490,8 @@ where
     }
 
     /*
-    fn transceive(&mut self, tx: &[u8], rx: &mut [u8], timeout_ms: u32) -> Result<usize, Error> {
-        let (len, bits) = self.transceive_raw(tx, rx, timeout_ms, true, 0)?;
+    fn transceive(&mut self, tx: &[u8], rx: &mut [u8], timeout_1fc: u32) -> Result<usize, Error> {
+        let (len, bits) = self.transceive_raw(tx, rx, timeout_1fc, true, 0)?;
         if bits != 0 {
             warn!("incomplete last byte (got {=u8} bits)", bits);
             return Err(Error::Other);

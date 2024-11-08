@@ -136,7 +136,7 @@ impl<T: LLReader> Poller<T> {
         tx[2..6].copy_from_slice(&uid);
         tx[6] = uid[0] ^ uid[1] ^ uid[2] ^ uid[3];
         let mut rx = [0; 1];
-        let opts = Frame::Standard { timeout_ms: 1 };
+        let opts = Frame::Standard { timeout_1fc: 65536 };
         let bits = self.reader.transceive(&tx, &mut rx, opts).await.map_err(Error::Lower)?;
         if bits != 8 {
             debug!("SELECT response wrong length: {} bits", bits);
@@ -148,7 +148,7 @@ impl<T: LLReader> Poller<T> {
     async fn transceive_hlta(&mut self) -> Result<(), Error<T::Error>> {
         let tx = [0x50, 0x00];
         let mut rx = [0; 1];
-        let opts = Frame::Standard { timeout_ms: 1 };
+        let opts = Frame::Standard { timeout_1fc: 65536 };
         let _ = self.reader.transceive(&tx, &mut rx, opts).await.map_err(Error::Lower)?;
         Ok(())
     }
@@ -305,10 +305,8 @@ pub struct Card<'d, T: LLReader> {
 impl<'d, T: LLReader + 'd> Reader for Card<'d, T> {
     type Error = T::Error;
 
-    async fn transceive(&mut self, tx: &[u8], rx: &mut [u8]) -> Result<usize, Self::Error> {
-        let opts = Frame::Standard {
-            timeout_ms: 100, // TODO unhardcode
-        };
+    async fn transceive(&mut self, tx: &[u8], rx: &mut [u8], timeout_1fc: u32) -> Result<usize, Self::Error> {
+        let opts = Frame::Standard { timeout_1fc };
         let res = self.reader.transceive(tx, rx, opts).await?;
         if res % 8 != 0 {
             panic!("last byte was not complete!");

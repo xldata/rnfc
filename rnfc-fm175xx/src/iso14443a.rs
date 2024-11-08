@@ -96,11 +96,11 @@ where
 
         let r = &mut *self.inner;
 
-        let (tx, crc, timeout_ms, lastbits, rxalign) = match opts {
-            ll::Frame::Anticoll { bits } => (&tx[..(bits + 7) / 8], false, 1, (bits % 8) as u8, (bits % 8) as u8),
-            ll::Frame::ReqA => (&[0x26][..], false, 1, 7, 0),
-            ll::Frame::WupA => (&[0x52][..], false, 1, 7, 0),
-            ll::Frame::Standard { timeout_ms } => (tx, true, timeout_ms, 0, 0),
+        let (tx, crc, timeout_1fc, lastbits, rxalign) = match opts {
+            ll::Frame::Anticoll { bits } => (&tx[..(bits + 7) / 8], false, 65536, (bits % 8) as u8, (bits % 8) as u8),
+            ll::Frame::ReqA => (&[0x26][..], false, 16384, 7, 0),
+            ll::Frame::WupA => (&[0x52][..], false, 16384, 7, 0),
+            ll::Frame::Standard { timeout_1fc } => (tx, true, timeout_1fc, 0, 0),
         };
 
         // Set CRC
@@ -108,7 +108,7 @@ where
         r.regs().rxmode().modify(|w| w.set_crcen(crc));
 
         // Set timeout
-        r.set_timer(timeout_ms);
+        r.set_timer(timeout_1fc);
 
         // Halt whatever currently running command.
         r.regs().command().write(|w| {

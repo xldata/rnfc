@@ -1,9 +1,10 @@
+use core::convert::Infallible;
 use core::fmt::Debug;
 
 #[derive(Debug)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub enum Frame {
-    Standard { timeout_ms: u32 },
+    Standard { timeout_1fc: u32 },
     WupA,
     ReqA,
     Anticoll { bits: usize },
@@ -19,6 +20,18 @@ pub enum ErrorKind {
 
 pub trait Error: Debug {
     fn kind(&self) -> ErrorKind;
+}
+
+impl Error for ErrorKind {
+    fn kind(&self) -> ErrorKind {
+        *self
+    }
+}
+
+impl Error for Infallible {
+    fn kind(&self) -> ErrorKind {
+        match *self {}
+    }
 }
 
 pub trait Reader {

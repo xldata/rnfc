@@ -115,8 +115,8 @@ impl<'d, I: Interface + 'd, IrqPin: InputPin + Wait + 'd> ll::Reader for Iso1444
                 this.iface.write_fifo(&tx[..(bits + 7) / 8]).map_err(Error::Interface)?;
                 (true, Command::TransmitWithoutCrc)
             }
-            ll::Frame::Standard { timeout_ms, .. } => {
-                fwt_ms = timeout_ms;
+            ll::Frame::Standard { timeout_1fc, .. } => {
+                fwt_ms = timeout_1fc / 13560 + 1;
                 let bits = tx.len() * 8;
                 this.regs().num_tx_bytes2().write_value((bits as u8).into())?;
                 this.regs().num_tx_bytes1().write_value((bits >> 8) as u8)?;

@@ -11,6 +11,7 @@ find . -name '*.rs' -not -path '*target*' | xargs rustfmt --check  --skip-childr
 cargo build --release --manifest-path rnfc/Cargo.toml --features ''
 cargo build --release --manifest-path rnfc/Cargo.toml --features 'defmt'
 cargo build --release --manifest-path rnfc/Cargo.toml --features 'log'
+RUST_LOG=trace cargo test --release --manifest-path rnfc/Cargo.toml --features 'log'
 
 cargo build --release --manifest-path rnfc-fm175xx/Cargo.toml --features ''
 cargo build --release --manifest-path rnfc-fm175xx/Cargo.toml --features 'defmt'

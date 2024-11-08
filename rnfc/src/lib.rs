@@ -1,4 +1,4 @@
-#![no_std]
+#![cfg_attr(not(test), no_std)]
 #![allow(async_fn_in_trait)]
 
 // This must go FIRST so that other mods see its macros.
