@@ -15,9 +15,9 @@ use embedded_hal::digital::{InputPin, OutputPin};
 use embedded_hal_async::digital::Wait;
 pub use interface::*;
 use regs::Regs;
+pub use regs::Rxgain as RxGain;
 
-#[derive(Debug, Clone, Copy)]
-#[cfg_attr(feature = "defmt", derive(defmt::Format))]
+#[derive(Clone, Copy)]
 pub struct RfConfig {
     /// NMOS carrier wave drive strength. 0..=15
     pub n_drive_cw: u8,
@@ -27,6 +27,12 @@ pub struct RfConfig {
     pub p_drive_cw: u8,
     /// PMOS carrier wave drive strength when modulating. 0..=63
     pub p_drive_mod: u8,
+    /// RX gain.
+    pub rx_gain: RxGain,
+    /// Min rx level. 0..=15
+    pub minlevel: u8,
+    /// Collision rx level. 0..=15
+    pub colllevel: u8,
 }
 
 impl Default for RfConfig {
@@ -36,6 +42,9 @@ impl Default for RfConfig {
             n_drive_mod: 8,
             p_drive_cw: 32,
             p_drive_mod: 32,
+            rx_gain: RxGain::_33DB,
+            minlevel: 8,
+            colllevel: 4,
         }
     }
 }

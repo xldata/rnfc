@@ -54,16 +54,17 @@ where
             w.set_framing(regs::Framing::ISO14443A);
             w.set_speed(regs::Speed::_106KBPS);
         });
-        self.regs().modwidth().write_value(0x26);
+        self.regs().modwidth().write_value(0x27);
         self.regs().control().write(|w| {
             w.set_initiator(true);
         });
+        let config = self.config.clone();
         self.regs().rfcfg().write(|w| {
-            w.set_rxgain(regs::Rxgain::_33DB);
+            w.set_rxgain(config.rx_gain);
         });
         self.regs().rxtreshold().write(|w| {
-            w.set_collevel(4);
-            w.set_minlevel(8);
+            w.set_collevel(config.colllevel);
+            w.set_minlevel(config.minlevel);
         });
         self.regs().txauto().write(|w| {
             w.set_force100ask(true);
