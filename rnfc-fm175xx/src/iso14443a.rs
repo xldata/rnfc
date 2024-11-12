@@ -1,5 +1,5 @@
 use embassy_futures::yield_now;
-use embassy_time::{Duration, Timer};
+use embassy_time::{Duration, Instant, Timer};
 use embedded_hal::digital::{InputPin, OutputPin};
 use embedded_hal_async::digital::Wait;
 use rnfc_traits::iso14443a_ll as ll;
@@ -175,7 +175,14 @@ where
         });
 
         let mut tx_done = false;
+        let deadline = Instant::now() + Duration::from_secs(1);
         loop {
+            // make sure to not loop forever if timeri never fires for whatever reason.
+            if Instant::now() > deadline {
+                warn!("emergency timeout");
+                return Err(Error::Other);
+            }
+
             let mut irqs = r.regs().commirq().read();
 
             if irqs.timeri() {

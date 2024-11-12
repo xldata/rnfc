@@ -10,7 +10,7 @@ mod regs;
 
 use core::convert::Infallible;
 
-use embassy_time::{with_timeout, Duration, TimeoutError, Timer};
+use embassy_time::{with_timeout, Duration, Instant, TimeoutError, Timer};
 use embedded_hal::digital::{InputPin, OutputPin};
 use embedded_hal_async::digital::Wait;
 pub use interface::*;
@@ -133,7 +133,14 @@ where
 
         debug!("softreset");
         self.regs().command().write(|w| w.set_command(regs::CommandVal::SOFTRESET));
-        while self.regs().command().read().command() != regs::CommandVal::IDLE {}
+
+        let deadline = Instant::now() + Duration::from_secs(1);
+        while self.regs().command().read().command() != regs::CommandVal::IDLE {
+            if Instant::now() > deadline {
+                warn!("timeout waiting for softreset.");
+                break;
+            }
+        }
 
         // again, just in case
         Timer::after(Duration::from_millis(1)).await;
@@ -456,7 +463,13 @@ where
         //cortex_m::asm::delay(640_000); // 100ms
 
         //info!("calib: waiting for irq..");
-        while !self.regs().lpcd_irq().read().calib_irq() {}
+        let deadline = Instant::now() + Duration::from_secs(1);
+        while !self.regs().lpcd_irq().read().calib_irq() {
+            if Instant::now() > deadline {
+                warn!("timeout waiting for adc calibration.");
+                break;
+            }
+        }
 
         // calibra_en = 0
         self.regs().lpcd_ctrl1().write(|w| {
