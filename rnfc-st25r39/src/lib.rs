@@ -8,7 +8,7 @@ mod fmt;
 mod aat;
 mod interface;
 pub mod iso14443a;
-mod regs;
+pub mod regs;
 
 pub use aat::AatConfig;
 use embassy_futures::yield_now;
@@ -276,7 +276,7 @@ impl<I: Interface, IrqPin: InputPin + Wait> St25r39<I, IrqPin> {
         Ok(this)
     }
 
-    fn regs(&mut self) -> Regs<I> {
+    pub fn regs(&mut self) -> Regs<I> {
         Regs::new(&mut self.iface)
     }
 
