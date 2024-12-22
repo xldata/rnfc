@@ -458,6 +458,9 @@ impl<I: Interface, IrqPin: InputPin + Wait> St25r39<I, IrqPin> {
         let mut wtc = regs::WupTimerControl(0);
         let mut irqs = 0;
 
+       // Increase resistance to reduce field amplitude (was 255, too high for delta detection). This gets ampl measurement to 116-ish in current prototype's setup
+        self.regs().tx_driver().modify(|w| w.set_d_res(0xC))?; 
+
         wtc.set_wur(config.period as u8 & 0x10 == 0);
         wtc.set_wut(config.period as u8 & 0x0F);
 
