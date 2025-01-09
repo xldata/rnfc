@@ -444,8 +444,7 @@ impl<I: Interface, IrqPin: InputPin + Wait> St25r39<I, IrqPin> {
     }
 
     /// Change into wakeup mode, return immediately.
-    /// The IRQ pin will go high on wakeup.
-    pub async fn wait_for_card(&mut self, config: WakeupConfig) -> Result<(), Error<I::Error>> {
+    pub async fn enable_wakeup_mode(&mut self, config: WakeupConfig) -> Result<(), Error<I::Error>> {
         self.mode_on().await?;
 
         self.mode = Mode::Wakeup;
@@ -458,8 +457,8 @@ impl<I: Interface, IrqPin: InputPin + Wait> St25r39<I, IrqPin> {
         let mut wtc = regs::WupTimerControl(0);
         let mut irqs = 0;
 
-       // Increase resistance to reduce field amplitude (was 255, too high for delta detection). This gets ampl measurement to 116-ish in current prototype's setup
-        self.regs().tx_driver().modify(|w| w.set_d_res(0xC))?; 
+        // Increase resistance to reduce field amplitude (was 255, too high for delta detection). This gets ampl measurement to 116-ish in current prototype's setup
+        self.regs().tx_driver().modify(|w| w.set_d_res(0xC))?;
 
         wtc.set_wur(config.period as u8 & 0x10 == 0);
         wtc.set_wut(config.period as u8 & 0x0F);
@@ -555,11 +554,132 @@ impl<I: Interface, IrqPin: InputPin + Wait> St25r39<I, IrqPin> {
         self.regs().op_control().write(|w| w.set_wu(true))?;
         self.irq_set_mask(!irqs)?;
 
+        Ok(())
+    }
+
+    /// Change into wakeup mode, return immediately.
+    /// The IRQ pin will go high on wakeup.
+    pub async fn wait_for_card(&mut self, config: WakeupConfig) -> Result<(), Error<I::Error>> {
+        if let Ok(()) = self.enable_wakeup_mode(config).await {
+            debug!("Entered wakeup mode, waiting for pin IRQ");
+            self.irq.wait_for_high().await.unwrap();
+            debug!("got pin IRQ!");
+        }
+        Ok(())
+        /*self.mode_on().await?;
+
+         self.mode = Mode::Wakeup;
+         debug!("Entering wakeup mode");
+
+         self.cmd(Command::Stop)?;
+         self.regs().op_control().write(|_| {})?;
+         self.regs().mode().write(|w| w.set_om(regs::ModeOm::INI_ISO14443A))?;
+
+         let mut wtc = regs::WupTimerControl(0);
+         let mut irqs = 0;
+
+        // Increase resistance to reduce field amplitude (was 255, too high for delta detection). This gets ampl measurement to 116-ish in current prototype's setup
+         self.regs().tx_driver().modify(|w| w.set_d_res(0xC))?;
+
+         wtc.set_wur(config.period as u8 & 0x10 == 0);
+         wtc.set_wut(config.period as u8 & 0x0F);
+
+         if let Some(m) = config.inductive_amplitude {
+             let mut conf = regs::AmplitudeMeasureConf(0);
+             conf.set_am_d(m.delta);
+             match m.reference {
+                 WakeupReference::Manual(val) => {
+                     self.regs().amplitude_measure_ref().write_value(val)?;
+                 }
+                 WakeupReference::Automatic => {
+                     let val = self.measure_amplitude().await?;
+                     self.regs().amplitude_measure_ref().write_value(val)?;
+                 }
+                 WakeupReference::AutoAverage {
+                     include_irq_measurement,
+                     weight,
+                 } => {
+                     let val = self.measure_amplitude().await?;
+                     self.regs().amplitude_measure_ref().write_value(val)?;
+                     conf.set_am_ae(true);
+                     conf.set_am_aam(include_irq_measurement);
+                     conf.set_am_aew(weight);
+                 }
+             }
+             self.regs().amplitude_measure_conf().write_value(conf)?;
+             wtc.set_wam(true);
+             irqs |= 1 << Interrupt::Wam as u32;
+         }
+         if let Some(m) = config.inductive_phase {
+             let mut conf = regs::PhaseMeasureConf(0);
+             conf.set_pm_d(m.delta);
+             match m.reference {
+                 WakeupReference::Manual(val) => {
+                     self.regs().phase_measure_ref().write_value(val)?;
+                 }
+                 WakeupReference::Automatic => {
+                     let val = self.measure_phase().await?;
+                     self.regs().phase_measure_ref().write_value(val)?;
+                 }
+                 WakeupReference::AutoAverage {
+                     include_irq_measurement,
+                     weight,
+                 } => {
+                     let val = self.measure_phase().await?;
+                     self.regs().phase_measure_ref().write_value(val)?;
+                     conf.set_pm_ae(true);
+                     conf.set_pm_aam(include_irq_measurement);
+                     conf.set_pm_aew(weight);
+                 }
+             }
+             self.regs().phase_measure_conf().write_value(conf)?;
+             wtc.set_wph(true);
+             irqs |= 1 << Interrupt::Wph as u32;
+         }
+         if let Some(m) = config.capacitive {
+             debug!("capacitance calibrating...");
+             let val = self.calibrate_capacitance().await?;
+             info!("capacitance calibrated: {}", val);
+
+             let mut conf = regs::CapacitanceMeasureConf(0);
+             conf.set_cm_d(m.delta);
+             match m.reference {
+                 WakeupReference::Manual(val) => {
+                     self.regs().capacitance_measure_ref().write_value(val)?;
+                 }
+                 WakeupReference::Automatic => {
+                     let val = self.measure_capacitance().await?;
+                     info!("Measured: {}", val);
+                     self.regs().capacitance_measure_ref().write_value(val)?;
+                 }
+                 WakeupReference::AutoAverage {
+                     include_irq_measurement,
+                     weight,
+                 } => {
+                     let val = self.measure_capacitance().await?;
+                     info!("Measured: {}", val);
+                     self.regs().capacitance_measure_ref().write_value(val)?;
+                     conf.set_cm_ae(true);
+                     conf.set_cm_aam(include_irq_measurement);
+                     conf.set_cm_aew(weight);
+                 }
+             }
+             self.regs().capacitance_measure_conf().write_value(conf)?;
+             wtc.set_wcap(true);
+             irqs |= 1 << Interrupt::Wcap as u32;
+         }
+
+         self.irq_clear()?;
+
+         self.regs().wup_timer_control().write_value(wtc)?;
+         self.regs().op_control().write(|w| w.set_wu(true))?;
+         self.irq_set_mask(!irqs)?;
+
         debug!("Entered wakeup mode, waiting for pin IRQ");
         self.irq.wait_for_high().await.unwrap();
         debug!("got pin IRQ!");
 
-        Ok(())
+        Ok(())*/
     }
 
     async fn field_on(&mut self) -> Result<(), FieldOnError<I::Error>> {
