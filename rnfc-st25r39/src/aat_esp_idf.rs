@@ -97,36 +97,12 @@ pub enum AntennaTuningError {
     //MeasurementFailed,
 }
 
-pub trait AntennaTuning {
-    async fn tune_antenna(&mut self) -> Result<(), AntennaTuningError>;
-    async fn rfal_chip_measure_amplitude(&mut self, amp: &mut u8) -> ();
-    async fn aat_measure(&mut self, a: &u8, b: &u8, amp: &mut u8, phs: &mut u8, ts: &mut St25r3916AatTuneResult) -> ();
-    fn aat_calc_f(&mut self, tp: &AatConfig, amp: u8, pha: u8) -> u16;
-    async fn aat_hill_climb(&mut self, tp: AatConfig, ts: St25r3916AatTuneResult);
-    async fn aat_steepest_descent(
-        &mut self,
-        f_min: &mut u16,
-        tp: &AatConfig,
-        ts: &mut St25r3916AatTuneResult,
-        direction: i32,
-        neg_direction: i32,
-    ) -> i32;
-    async fn aat_greedy_descent(
-        &mut self,
-        f_min: &mut u16,
-        tp: &AatConfig,
-        ts: &mut St25r3916AatTuneResult,
-        direction: i32,
-    ) -> i32;
-    fn aat_step_dac_vals(&mut self, tp: &AatConfig, a: &mut u8, b: &mut u8, dir: i32) -> Result<(), AntennaTuningError>;
-}
-
-impl<I, IrqPin> AntennaTuning for St25r39<I, IrqPin>
+impl<I, IrqPin> St25r39<I, IrqPin>
 where
     I: Interface,
     IrqPin: InputPin + Wait,
 {
-    async fn tune_antenna(&mut self) -> Result<(), AntennaTuningError> {
+    pub async fn tune_antenna(&mut self) -> Result<(), AntennaTuningError> {
         let tp = AatConfig::new();
 
         let ts = St25r3916AatTuneResult {
@@ -151,7 +127,7 @@ where
         let mut phs: u8 = 0;
 
         /* Get a proper start value */
-        self.aat_measure(&ts.aat_a.clone(), &ts.aat_b.clone(), &mut amp, &mut phs, &mut ts)
+        self.aat_idf_measure(&ts.aat_a.clone(), &ts.aat_b.clone(), &mut amp, &mut phs, &mut ts)
             .await;
         f_min = self.aat_calc_f(&tp, amp, phs);
 
@@ -234,7 +210,7 @@ where
                 continue; // Err returned: step_dac did nothing, try next direction
             };
             info!("After step_dac before aat_measure");
-            self.aat_measure(&a_test, &b_test, &mut amp, &mut phs, ts).await;
+            self.aat_idf_measure(&a_test, &b_test, &mut amp, &mut phs, ts).await;
             f = self.aat_calc_f(tp, amp, phs);
 
             info!(
@@ -274,7 +250,7 @@ where
             info!("step_dac_vals returned err from greedy descent");
             return 0; // Err returned: step_dac did nothing, return 0
         };
-        self.aat_measure(&a_test, &b_test, &mut amp, &mut phs, ts).await;
+        self.aat_idf_measure(&a_test, &b_test, &mut amp, &mut phs, ts).await;
         f = self.aat_calc_f(tp, amp, phs);
 
         info!("Greedy descent result: ts.aat_a: {}, ts.aat_b: {}, f: {}", a_test, b_test, f);
@@ -330,7 +306,7 @@ where
         Ok(())
     }
 
-    async fn aat_measure(&mut self, a: &u8, b: &u8, amp: &mut u8, phs: &mut u8, ts: &mut St25r3916AatTuneResult) {
+    async fn aat_idf_measure(&mut self, a: &u8, b: &u8, amp: &mut u8, phs: &mut u8, ts: &mut St25r3916AatTuneResult) {
         *amp = 0; // (re-)init, gets set by the measurement below
         *phs = 0; // (re-)init, gets set by the measurement below
 
