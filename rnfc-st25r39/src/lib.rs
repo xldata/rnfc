@@ -6,6 +6,7 @@
 mod fmt;
 
 mod aat;
+mod aat_esp_idf;
 mod interface;
 pub mod iso14443a;
 pub mod regs;
@@ -176,6 +177,13 @@ pub struct WakeupConfig {
     pub inductive_amplitude: Option<WakeupMethodConfig>,
     pub inductive_phase: Option<WakeupMethodConfig>,
     pub capacitive: Option<WakeupMethodConfig>,
+    pub tx_driver_config: Option<WakeupTXDriverConfig>,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[cfg_attr(feature = "defmt", derive(defmt::Format))]
+pub struct WakeupTXDriverConfig {
+    pub tx_driver_d_res: u8, //TO-DO: add more tx driver fields when necessary
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -259,7 +267,7 @@ enum Mode {
 
 pub struct St25r39<I: Interface, IrqPin: InputPin + Wait> {
     iface: I,
-    irq: IrqPin,
+    pub irq: IrqPin,
     irqs: u32,
     mode: Mode,
 }
@@ -457,8 +465,12 @@ impl<I: Interface, IrqPin: InputPin + Wait> St25r39<I, IrqPin> {
         let mut wtc = regs::WupTimerControl(0);
         let mut irqs = 0;
 
-        // Increase resistance to reduce field amplitude (was 255, too high for delta detection). This gets ampl measurement to 116-ish in current prototype's setup
-        self.regs().tx_driver().modify(|w| w.set_d_res(0xC))?; //TODO: make this an arg in wakeupconfig?
+        // add other TX driver fields when needed / applicable
+        if let Some(tx_driver_config) = config.tx_driver_config {
+            self.regs()
+                .tx_driver()
+                .modify(|w| w.set_d_res(tx_driver_config.tx_driver_d_res))?;
+        }
 
         wtc.set_wur(config.period as u8 & 0x10 == 0);
         wtc.set_wut(config.period as u8 & 0x0F);
