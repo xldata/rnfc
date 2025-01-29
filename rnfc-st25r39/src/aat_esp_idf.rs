@@ -2,16 +2,12 @@
 Port of the ST HAL's C lib AAT, not RNFC's
 */
 
-use std::future::Future;
-
 use embassy_time::{Duration, Timer};
 use embedded_hal::digital::InputPin;
 use embedded_hal_async::digital::Wait;
-use embedded_hal_bus::i2c::RefCellDevice;
-use rnfc_st25r39::regs::*;
-use rnfc_st25r39::{I2cInterface, Interface, St25r39};
 
-use crate::drivers::nfc_utils::embedded_hal_wrappers::{XLPinWrapper, XlI2cDriver};
+use crate::regs::*;
+use crate::{Interface, St25r39};
 
 const ST25R3916_AAT_CAP_DELAY_MAX: u64 = 10; /* Max Variable Capacitor settle delay */
 
@@ -27,7 +23,7 @@ const ST25R3916_REG_RX_CONF2_amd_sel: u8 = 1 << 6;
 const ST25R3916_REG_RX_CONF2_amd_sel_peak: u8 = 0 << 6;
 const ST25R3916_REG_AUX_MOD_rgs_am: u8 = 1 << 2; // For ST25R3916B. TODO this is in reg space B, check if properly written by RNFC
 
-struct AatConfig {
+pub struct AatConfig {
     a_min: u8,
     a_max: u8,
     a_start: u8,
@@ -69,7 +65,7 @@ impl AatConfig {
 /*
  * struct representing out parameters for the antenna tuning
  */
-struct St25r3916AatTuneResult {
+pub struct St25r3916AatTuneResult {
     aat_a: u8,      /* serial cap after tuning */
     aat_b: u8,      /* parallel cap after tuning */
     pha: u8,        /* phase after tuning */
@@ -98,23 +94,16 @@ struct St25r3916AatTuneResult {
 pub enum AntennaTuningError {
     NoChange,
     InvalidDirection,
-    MeasurementFailed,
+    //MeasurementFailed,
 }
 
 pub trait AntennaTuning {
-    fn tune_antenna(&mut self) -> Result<(), AntennaTuningError>;
-    fn rfal_chip_measure_amplitude(&mut self, amp: &mut u8) -> impl Future<Output = ()>;
-    fn aat_measure(
-        &mut self,
-        a: &u8,
-        b: &u8,
-        amp: &mut u8,
-        phs: &mut u8,
-        ts: &mut St25r3916AatTuneResult,
-    ) -> impl Future<Output = ()>;
+    async fn tune_antenna(&mut self) -> Result<(), AntennaTuningError>;
+    async fn rfal_chip_measure_amplitude(&mut self, amp: &mut u8) -> ();
+    async fn aat_measure(&mut self, a: &u8, b: &u8, amp: &mut u8, phs: &mut u8, ts: &mut St25r3916AatTuneResult) -> ();
     fn aat_calc_f(&mut self, tp: &AatConfig, amp: u8, pha: u8) -> u16;
-    fn aat_hill_climb(&mut self, tp: AatConfig, ts: St25r3916AatTuneResult);
-    fn aat_steepest_descent(
+    async fn aat_hill_climb(&mut self, tp: AatConfig, ts: St25r3916AatTuneResult);
+    async fn aat_steepest_descent(
         &mut self,
         f_min: &mut u16,
         tp: &AatConfig,
@@ -122,7 +111,13 @@ pub trait AntennaTuning {
         direction: i32,
         neg_direction: i32,
     ) -> i32;
-    fn aat_greedy_descent(&mut self, f_min: &mut u16, tp: &AatConfig, ts: &mut St25r3916AatTuneResult, direction: i32) -> i32;
+    async fn aat_greedy_descent(
+        &mut self,
+        f_min: &mut u16,
+        tp: &AatConfig,
+        ts: &mut St25r3916AatTuneResult,
+        direction: i32,
+    ) -> i32;
     fn aat_step_dac_vals(&mut self, tp: &AatConfig, a: &mut u8, b: &mut u8, dir: i32) -> Result<(), AntennaTuningError>;
 }
 
@@ -131,7 +126,7 @@ where
     I: Interface,
     IrqPin: InputPin + Wait,
 {
-    fn tune_antenna(&mut self) -> Result<(), AntennaTuningError> {
+    async fn tune_antenna(&mut self) -> Result<(), AntennaTuningError> {
         let tp = AatConfig::new();
 
         let ts = St25r3916AatTuneResult {
@@ -142,13 +137,13 @@ where
             measureCnt: 0,     /* number of measures performed */
         };
 
-        println!("Calling hill climb");
-        self.aat_hill_climb(tp, ts);
+        info!("Calling hill climb");
+        self.aat_hill_climb(tp, ts).await;
 
         Ok(())
     }
 
-    fn aat_hill_climb(&mut self, mut tp: AatConfig, mut ts: St25r3916AatTuneResult) {
+    async fn aat_hill_climb(&mut self, mut tp: AatConfig, mut ts: St25r3916AatTuneResult) {
         let mut f_min: u16;
         let mut direction: i32;
         let mut gdirection: i32;
@@ -156,10 +151,11 @@ where
         let mut phs: u8 = 0;
 
         /* Get a proper start value */
-        self.aat_measure(&ts.aat_a.clone(), &ts.aat_b.clone(), &mut amp, &mut phs, &mut ts);
+        self.aat_measure(&ts.aat_a.clone(), &ts.aat_b.clone(), &mut amp, &mut phs, &mut ts)
+            .await;
         f_min = self.aat_calc_f(&tp, amp, phs);
 
-        println!(
+        info!(
             "Start hill climb before outer loop ts.aat_a: {}, ts.aat_b: {}, f_min: {}",
             ts.aat_a, ts.aat_b, f_min
         );
@@ -168,21 +164,23 @@ where
             direction = 0; /* Initially and after reducing step sizes we don't have a previous direction */
 
             loop {
-                println!("aat_measure loop");
+                info!("aat_measure loop");
                 /* With the greedy step below always executed aftwards the -direction does never need to be investigated */
-                direction = self.aat_steepest_descent(&mut f_min, &tp, &mut ts, direction, -direction);
-                println!("Direction from steepest_descent: {}", direction);
+                direction = self
+                    .aat_steepest_descent(&mut f_min, &tp, &mut ts, direction, -direction)
+                    .await;
+                info!("Direction from steepest_descent: {}", direction);
 
                 if ts.measureCnt > tp.measure_limit {
-                    println!("AAT steep hill climb stopped due to measure count > measure limit");
+                    info!("AAT steep hill climb stopped due to measure count > measure limit");
                     break 'outer;
                 }
 
                 loop {
-                    gdirection = self.aat_greedy_descent(&mut f_min, &tp, &mut ts, direction);
-                    println!("Direction from greedy descent: {}", gdirection);
+                    gdirection = self.aat_greedy_descent(&mut f_min, &tp, &mut ts, direction).await;
+                    info!("Direction from greedy descent: {}", gdirection);
                     if ts.measureCnt > tp.measure_limit {
-                        println!("AAT greedy hill climb stopped due to measure count > measure limit");
+                        info!("AAT greedy hill climb stopped due to measure count > measure limit");
                         break 'outer;
                     }
 
@@ -196,14 +194,14 @@ where
                 }
             }
 
-            println!("New steps, a: {}, b: {}", tp.a_step, tp.b_step);
+            info!("New steps, a: {}, b: {}", tp.a_step, tp.b_step);
 
             tp.a_step /= 2;
             tp.b_step /= 2;
         }
     }
 
-    fn aat_steepest_descent(
+    async fn aat_steepest_descent(
         &mut self,
         f_min: &mut u16,
         tp: &AatConfig,
@@ -220,7 +218,7 @@ where
             let mut a_test = ts.aat_a;
             let mut b_test = ts.aat_b;
 
-            println!(
+            info!(
                 "aat_steepest_desc dir i:{}, -dir: {}, -negdir: {}",
                 i, -direction, -neg_direction
             );
@@ -230,23 +228,23 @@ where
                 continue;
             }
 
-            println!("Before step_dac_vals");
+            info!("Before step_dac_vals");
             let Ok(()) = self.aat_step_dac_vals(tp, &mut a_test, &mut b_test, i) else {
-                println!("step_dac_vals returned err");
+                info!("step_dac_vals returned err");
                 continue; // Err returned: step_dac did nothing, try next direction
             };
-            println!("After step_dac before aat_measure");
-            self.aat_measure(&a_test, &b_test, &mut amp, &mut phs, ts);
+            info!("After step_dac before aat_measure");
+            self.aat_measure(&a_test, &b_test, &mut amp, &mut phs, ts).await;
             f = self.aat_calc_f(tp, amp, phs);
 
-            println!(
+            info!(
                 "Steepest descent result: i: {}, a_test: {}, b_test: {}, amp: {}, phs: {}, f: {}",
                 i, a_test, b_test, amp, phs, f
             );
 
             if f < *f_min {
                 /* Value is better than all previous ones */
-                println!("**Better value!**, dir: {}", i);
+                info!("**Better value!**, dir: {}", i);
                 *f_min = f;
                 bestdir = i;
             }
@@ -254,12 +252,18 @@ where
 
         if 0 != bestdir {
             /* Walk into the best direction */
-            self.aat_step_dac_vals(tp, &mut ts.aat_a, &mut ts.aat_b, bestdir);
+            let _ = self.aat_step_dac_vals(tp, &mut ts.aat_a, &mut ts.aat_b, bestdir);
         }
         bestdir
     }
 
-    fn aat_greedy_descent(&mut self, f_min: &mut u16, tp: &AatConfig, ts: &mut St25r3916AatTuneResult, direction: i32) -> i32 {
+    async fn aat_greedy_descent(
+        &mut self,
+        f_min: &mut u16,
+        tp: &AatConfig,
+        ts: &mut St25r3916AatTuneResult,
+        direction: i32,
+    ) -> i32 {
         let mut amp = 0; // (re-)init, gets set by the measurement below
         let mut phs = 0; // (re-)init, gets set by the measurement below
         let f;
@@ -267,17 +271,17 @@ where
         let mut b_test = ts.aat_b;
 
         let Ok(()) = self.aat_step_dac_vals(tp, &mut a_test, &mut b_test, direction) else {
-            println!("step_dac_vals returned err from greedy descent");
+            info!("step_dac_vals returned err from greedy descent");
             return 0; // Err returned: step_dac did nothing, return 0
         };
-        self.aat_measure(&a_test, &b_test, &mut amp, &mut phs, ts);
+        self.aat_measure(&a_test, &b_test, &mut amp, &mut phs, ts).await;
         f = self.aat_calc_f(tp, amp, phs);
 
-        println!("Greedy descent result: ts.aat_a: {}, ts.aat_b: {}, f: {}", a_test, b_test, f);
+        info!("Greedy descent result: ts.aat_a: {}, ts.aat_b: {}, f: {}", a_test, b_test, f);
 
         if f < *f_min {
             /* Value is better than previous one */
-            println!("** Better value!**");
+            info!("** Better value!**");
             ts.aat_a = a_test;
             ts.aat_b = b_test;
             *f_min = f;
@@ -291,12 +295,12 @@ where
         let mut a_changing = a.clone();
         let mut b_changing = b.clone();
 
-        println!("start a & b: {} {}", a, b);
+        info!("start a & b: {} {}", a, b);
 
         match dir.abs() {
             /* Advance by steps size in requested direction */
             1 => {
-                println!("step_dac 1");
+                info!("step_dac 1");
                 a_changing = if dir < 0 { *a - tp.a_step } else { *a + tp.a_step };
 
                 a_changing = a_changing.clamp(tp.a_min, tp.a_max);
@@ -305,7 +309,7 @@ where
                 }
             }
             2 => {
-                println!("step_dac 2");
+                info!("step_dac 2");
                 b_changing = if dir < 0 { *b - tp.b_step } else { *b + tp.b_step };
 
                 b_changing = b_changing.clamp(tp.b_min, tp.b_max);
@@ -321,7 +325,7 @@ where
         *a = a_changing;
         *b = b_changing;
 
-        println!("final a & b: {} {}", a, b);
+        info!("final a & b: {} {}", a, b);
 
         Ok(())
     }
@@ -330,16 +334,16 @@ where
         *amp = 0; // (re-)init, gets set by the measurement below
         *phs = 0; // (re-)init, gets set by the measurement below
 
-        println!("Writing ant a and ant b registers with values: {} and {}", a, b);
+        info!("Writing ant a and ant b registers with values: {} and {}", a, b);
 
-        self.regs().ant_tune_a().write_value(*a);
-        self.regs().ant_tune_b().write_value(*b);
+        self.regs().ant_tune_a().write_value(*a).unwrap();
+        self.regs().ant_tune_b().write_value(*b).unwrap();
 
         /* Wait till caps have settled.. */
         Timer::after(Duration::from_millis(ST25R3916_AAT_CAP_DELAY_MAX)).await;
 
         /* Get amplitude and phase .. */
-        self.rfal_chip_measure_amplitude(amp);
+        self.rfal_chip_measure_amplitude(amp).await;
         *phs = self.measure_phase().await.unwrap();
 
         /*
@@ -347,9 +351,9 @@ where
         */
         let ant_a_value = self.regs().ant_tune_a().read().unwrap();
         let ant_b_value = self.regs().ant_tune_b().read().unwrap();
-        println!("Registers AAT A and B after setting them: {} {}", ant_a_value, ant_b_value);
+        info!("Registers AAT A and B after setting them: {} {}", ant_a_value, ant_b_value);
 
-        println!("Measured amp and phase: {} and {}", amp, phs);
+        info!("Measured amp and phase: {} and {}", amp, phs);
 
         ts.measureCnt += 1;
     }
