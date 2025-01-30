@@ -3240,7 +3240,7 @@ impl From<TxDriverDRes> for u8 {
     }
 }
 #[repr(transparent)]
-#[derive(Copy, Clone, Eq, PartialEq, Ord, PartialOrd)]
+#[derive(Copy, Clone, Eq, PartialEq, Ord, PartialOrd, Debug)]
 pub struct TxDriverAmMod(pub u8);
 impl TxDriverAmMod {
     pub const _5PERCENT: Self = Self(0);
