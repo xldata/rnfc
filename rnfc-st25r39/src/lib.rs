@@ -810,7 +810,7 @@ impl<I: Interface, IrqPin: InputPin + Wait> St25r39<I, IrqPin> {
         Ok(())
     }
 
-    fn irq_set_mask(&mut self, mask: u32) -> Result<(), Error<I::Error>> {
+    pub fn irq_set_mask(&mut self, mask: u32) -> Result<(), Error<I::Error>> {
         for i in 0..4 {
             self.regs().irq_mask(i).write_value((mask >> (i * 8)) as u8)?;
         }
