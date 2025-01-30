@@ -17,6 +17,7 @@ use embassy_time::{Duration, Instant};
 use embedded_hal::digital::InputPin;
 use embedded_hal_async::digital::Wait;
 pub use interface::{I2cInterface, Interface, SpiInterface};
+use regs::TxDriverAmMod;
 
 use self::regs::{Regs, TxDriverDRes};
 
@@ -183,7 +184,8 @@ pub struct WakeupConfig {
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub struct WakeupTXDriverConfig {
-    pub tx_driver_d_res: TxDriverDRes, //TO-DO: add more tx driver fields when necessary
+    pub d_res: TxDriverDRes, //TO-DO: add more tx driver fields when necessary
+    pub am_mod: TxDriverAmMod,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -467,9 +469,7 @@ impl<I: Interface, IrqPin: InputPin + Wait> St25r39<I, IrqPin> {
 
         // add other TX driver fields when needed / applicable
         if let Some(tx_driver_config) = config.tx_driver_config {
-            self.regs()
-                .tx_driver()
-                .modify(|w| w.set_d_res(tx_driver_config.tx_driver_d_res))?;
+            self.regs().tx_driver().modify(|w| w.set_d_res(tx_driver_config.d_res))?;
         }
 
         wtc.set_wur(config.period as u8 & 0x10 == 0);
