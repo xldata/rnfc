@@ -172,7 +172,6 @@ enum Interrupt {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-#[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub struct WakeupConfig {
     pub period: WakeupPeriod,
     pub inductive_amplitude: Option<WakeupMethodConfig>,
@@ -182,7 +181,6 @@ pub struct WakeupConfig {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-#[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub struct WakeupTXDriverConfig {
     pub d_res: TxDriverDRes, //TO-DO: add more tx driver fields when necessary
     pub am_mod: TxDriverAmMod,
