@@ -3210,6 +3210,7 @@ impl From<RxConf1Lp> for u8 {
 }
 #[repr(transparent)]
 #[derive(Copy, Clone, Eq, PartialEq, Ord, PartialOrd, Debug)]
+#[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub struct TxDriverDRes(pub u8);
 impl TxDriverDRes {
     pub const _1_00: Self = Self(0);
@@ -3241,6 +3242,7 @@ impl From<TxDriverDRes> for u8 {
 }
 #[repr(transparent)]
 #[derive(Copy, Clone, Eq, PartialEq, Ord, PartialOrd, Debug)]
+#[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub struct TxDriverAmMod(pub u8);
 impl TxDriverAmMod {
     pub const _5PERCENT: Self = Self(0);
