@@ -1,4 +1,5 @@
-use core::fmt::{Debug};
+use core::fmt::Debug;
+
 use embassy_time::{with_timeout, Timer};
 use rnfc_traits::iso14443a_ll as ll;
 
@@ -204,20 +205,13 @@ impl<'d, I: Interface + 'd, IrqPin: InputPin + Wait + 'd> ll::Reader for Iso1444
 
         if let ll::Frame::Anticoll { bits } = opts {
             let full_bytes = bits / 8;
-            debug!("Anticoll: bits={}, full_bytes={}, rx_bytes={}", bits, full_bytes, rx_bytes);
-            debug!("TX buffer: {:?}", tx);
-
             rx[..full_bytes].copy_from_slice(&tx[..full_bytes]);
             this.iface
                 .read_fifo(&mut rx[full_bytes..][..rx_bytes])
                 .map_err(Error::Interface)?;
-
             if bits % 8 != 0 {
-                info!("tx {} rx {} bits{}", tx[full_bytes], rx[full_bytes], bits);
-                return Err(Error::Framing);
                 let half_byte = tx[full_bytes] & (1 << bits) - 1;
-                info!("half_byte: {}", half_byte);
-                rx[full_bytes] |= half_byte;
+                rx[full_bytes] |= half_byte
             }
 
             let rx_bits = if this.irq(Interrupt::Col) {
@@ -226,7 +220,7 @@ impl<'d, I: Interface + 'd, IrqPin: InputPin + Wait + 'd> ll::Reader for Iso1444
             } else {
                 full_bytes * 8 + rx_bytes * 8
             };
-            debug!("RX: {:?} bits: {}", Bytes(rx), rx_bits);
+            debug!("RX: {:02x} bits: {}", Bytes(rx), rx_bits);
 
             Ok(rx_bits)
         } else {
@@ -243,7 +237,7 @@ impl<'d, I: Interface + 'd, IrqPin: InputPin + Wait + 'd> ll::Reader for Iso1444
             }
 
             this.iface.read_fifo(&mut rx[..rx_bytes]).map_err(Error::Interface)?;
-            debug!("RX: {:?}", Bytes(&rx[..rx_bytes]));
+            debug!("RX: {:02x}", Bytes(&rx[..rx_bytes]));
             Ok(rx_bytes * 8)
         }
     }
