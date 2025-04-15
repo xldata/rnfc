@@ -13,7 +13,7 @@ pub mod regs;
 
 pub use aat::AatConfig;
 use embassy_futures::yield_now;
-use embassy_time::{Duration, Instant};
+use embassy_time::{Duration, Instant, Timer};
 use embedded_hal::digital::InputPin;
 use embedded_hal_async::digital::Wait;
 pub use interface::{I2cInterface, Interface, SpiInterface};
@@ -301,10 +301,24 @@ impl<I: Interface, IrqPin: InputPin + Wait> St25r39<I, IrqPin> {
     }
 
     async fn enable_osc(&mut self) -> Result<(), Error<I::Error>> {
-        trace!("Starting osc...");
         self.regs().op_control().write(|w| w.set_en(true))?;
-        while !self.regs().aux_display().read()?.osc_ok() {}
-        Ok(())
+
+        let mut attempt = 0;
+        loop {
+            attempt += 1;
+            match self.regs().aux_display().read() {
+                Ok(val) if val.osc_ok() => {return Ok(());},
+                Ok(val) if !val.osc_ok() => {debug!("OSC not 1 yet.")}
+                Err(e) => {
+                    debug!("Couldn't read aux display");
+                },
+                _=>{}
+            };
+            if attempt == 50 {
+                return Err(self::Error::Timeout);
+            }
+            Timer::after(Duration::from_millis(20)).await;
+        }
     }
 
     async fn init(&mut self) -> Result<(), Error<I::Error>> {
