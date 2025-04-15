@@ -462,7 +462,7 @@ impl<I: Interface, IrqPin: InputPin + Wait> St25r39<I, IrqPin> {
             w.set_en_fd(regs::OpControlEnFd::AUTO_EFD);
         })?;
         self.regs().tx_driver().write(|w| {
-            w.set_d_res(regs::TxDriverDRes::_1_61);
+            w.set_d_res(regs::TxDriverDRes::_1);
         })?;
         Ok(())
     }
@@ -484,6 +484,7 @@ impl<I: Interface, IrqPin: InputPin + Wait> St25r39<I, IrqPin> {
         // add other TX driver fields when needed / applicable
         if let Some(tx_driver_config) = config.tx_driver_config {
             self.regs().tx_driver().modify(|w| w.set_d_res(tx_driver_config.d_res))?;
+            self.regs().tx_driver().modify(|w| w.set_am_mod(tx_driver_config.am_mod))?;
         }
 
         wtc.set_wur(config.period as u8 & 0x10 == 0);
@@ -583,7 +584,7 @@ impl<I: Interface, IrqPin: InputPin + Wait> St25r39<I, IrqPin> {
         Ok(())
     }
 
-    /// Change into wakeup mode, return immediately.
+    /// Change into wakeup mode, return when a card is detected.
     /// The IRQ pin will go high on wakeup.
     pub async fn wait_for_card(&mut self, config: WakeupConfig) -> Result<(), Error<I::Error>> {
         if let Ok(()) = self.enable_wakeup_mode(config).await {
@@ -714,7 +715,7 @@ impl<I: Interface, IrqPin: InputPin + Wait> St25r39<I, IrqPin> {
             w.set_tr_am(false); // use OOK
         })?;
         self.regs().tx_driver().write(|w| {
-            w.set_am_mod(regs::TxDriverAmMod::_12PERCENT);
+            w.set_am_mod(regs::TxDriverAmMod::_15);
         })?;
         self.regs().aux_mod().write(|w| {
             w.set_lm_dri(true); // Enable internal Load Modulation
@@ -853,7 +854,7 @@ impl<'a, I: Interface, IrqPin: InputPin + Wait> Raw<'a, I, IrqPin> {
     pub async fn driver_hi_z(&mut self) -> Result<(), Error<I::Error>> {
         self.inner.mode_off()?;
         self.inner.regs().tx_driver().write(|w| {
-            w.set_d_res(regs::TxDriverDRes::_HIGH_Z); // hi-z
+            w.set_d_res(regs::TxDriverDRes::_15); // hi-z
         })?;
 
         Ok(())
