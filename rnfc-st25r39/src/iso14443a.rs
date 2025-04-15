@@ -210,7 +210,9 @@ impl<'d, I: Interface + 'd, IrqPin: InputPin + Wait + 'd> ll::Reader for Iso1444
                 .read_fifo(&mut rx[full_bytes..][..rx_bytes])
                 .map_err(Error::Interface)?;
             if bits % 8 != 0 {
-                let half_byte = tx[full_bytes] & (1 << bits) - 1;
+                debug!("tx {:?} tx[fullbytes] {:?}  bits {:?}", tx, tx[full_bytes], bits);
+                let remainder = bits % 8;
+                let half_byte = tx[full_bytes] & (1 << remainder) - 1;
                 rx[full_bytes] |= half_byte
             }
 

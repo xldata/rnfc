@@ -13,7 +13,7 @@ pub mod regs;
 
 pub use aat::AatConfig;
 use embassy_futures::yield_now;
-use embassy_time::{Duration, Instant};
+use embassy_time::{Duration, Instant, Timer};
 use embedded_hal::digital::InputPin;
 use embedded_hal_async::digital::Wait;
 pub use interface::{I2cInterface, Interface, SpiInterface};
@@ -79,6 +79,8 @@ enum Command {
     TransparentMode = 0xDC,
     /// Calibrate the capacitive sensor
     CalibrateCSensor = 0xDD,
+    // Calibrate RC (B variant only?)
+    CalibrateRC = 0xEA,
     /// Measure capacitance
     MeasureCapacitance = 0xDE,
     /// Measure power supply voltage
@@ -178,14 +180,6 @@ pub struct WakeupConfig {
     pub inductive_amplitude: Option<WakeupMethodConfig>,
     pub inductive_phase: Option<WakeupMethodConfig>,
     pub capacitive: Option<WakeupMethodConfig>,
-    pub tx_driver_config: Option<WakeupTXDriverConfig>,
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-#[cfg_attr(feature = "defmt", derive(defmt::Format))]
-pub struct WakeupTXDriverConfig {
-    pub d_res: TxDriverDRes, //TO-DO: add more tx driver fields when necessary
-    pub am_mod: TxDriverAmMod,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -301,10 +295,24 @@ impl<I: Interface, IrqPin: InputPin + Wait> St25r39<I, IrqPin> {
     }
 
     async fn enable_osc(&mut self) -> Result<(), Error<I::Error>> {
-        trace!("Starting osc...");
         self.regs().op_control().write(|w| w.set_en(true))?;
-        while !self.regs().aux_display().read()?.osc_ok() {}
-        Ok(())
+
+        let mut attempt = 0;
+        loop {
+            attempt += 1;
+            match self.regs().aux_display().read() {
+                Ok(val) if val.osc_ok() => {return Ok(());},
+                Ok(val) if !val.osc_ok() => {debug!("OSC not 1 yet.")}
+                Err(e) => {
+                    debug!("Couldn't read aux display");
+                },
+                _=>{}
+            };
+            if attempt == 50 {
+                return Err(self::Error::Timeout);
+            }
+            Timer::after(Duration::from_millis(20)).await;
+        }
     }
 
     async fn init(&mut self) -> Result<(), Error<I::Error>> {
@@ -383,6 +391,9 @@ impl<I: Interface, IrqPin: InputPin + Wait> St25r39<I, IrqPin> {
         let res = self.regs().regulator_result().read()?.0;
         trace!("reg result = {}", res);
 
+        // Taken from ST lib p23, on B variant do RC calibration
+        self.cmd_wait(Command::CalibrateRC).await?;
+
         Ok(())
     }
 
@@ -448,7 +459,7 @@ impl<I: Interface, IrqPin: InputPin + Wait> St25r39<I, IrqPin> {
             w.set_en_fd(regs::OpControlEnFd::AUTO_EFD);
         })?;
         self.regs().tx_driver().write(|w| {
-            w.set_d_res(regs::TxDriverDRes::_1_61);
+            w.set_d_res(regs::TxDriverDRes::_1);
         })?;
         Ok(())
     }
@@ -466,11 +477,6 @@ impl<I: Interface, IrqPin: InputPin + Wait> St25r39<I, IrqPin> {
 
         let mut wtc = regs::WupTimerControl(0);
         let mut irqs = 0;
-
-        // add other TX driver fields when needed / applicable
-        if let Some(tx_driver_config) = config.tx_driver_config {
-            self.regs().tx_driver().modify(|w| w.set_d_res(tx_driver_config.d_res))?;
-        }
 
         wtc.set_wur(config.period as u8 & 0x10 == 0);
         wtc.set_wut(config.period as u8 & 0x0F);
@@ -569,7 +575,7 @@ impl<I: Interface, IrqPin: InputPin + Wait> St25r39<I, IrqPin> {
         Ok(())
     }
 
-    /// Change into wakeup mode, return immediately.
+    /// Change into wakeup mode, return when a card is detected.
     /// The IRQ pin will go high on wakeup.
     pub async fn wait_for_card(&mut self, config: WakeupConfig) -> Result<(), Error<I::Error>> {
         if let Ok(()) = self.enable_wakeup_mode(config).await {
@@ -700,7 +706,7 @@ impl<I: Interface, IrqPin: InputPin + Wait> St25r39<I, IrqPin> {
             w.set_tr_am(false); // use OOK
         })?;
         self.regs().tx_driver().write(|w| {
-            w.set_am_mod(regs::TxDriverAmMod::_12PERCENT);
+            w.set_am_mod(regs::TxDriverAmMod::_15);
         })?;
         self.regs().aux_mod().write(|w| {
             w.set_lm_dri(true); // Enable internal Load Modulation
@@ -839,7 +845,7 @@ impl<'a, I: Interface, IrqPin: InputPin + Wait> Raw<'a, I, IrqPin> {
     pub async fn driver_hi_z(&mut self) -> Result<(), Error<I::Error>> {
         self.inner.mode_off()?;
         self.inner.regs().tx_driver().write(|w| {
-            w.set_d_res(regs::TxDriverDRes::_HIGH_Z); // hi-z
+            w.set_d_res(regs::TxDriverDRes::_15); // hi-z
         })?;
 
         Ok(())

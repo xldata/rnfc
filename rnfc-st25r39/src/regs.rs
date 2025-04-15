@@ -381,6 +381,15 @@ impl AuxMod {
     pub fn set_dis_reg_am(&mut self, val: bool) {
         self.0 = (self.0 & !(0x01 << 7usize)) | (((val as u8) & 0x01) << 7usize);
     }
+
+    pub const fn rgs_am(&self) -> bool {
+        let val = (self.0 >> 2usize) & 0x01;
+        val != 0
+    }
+
+    pub fn set_rgs_am(&mut self, val: bool) {
+        self.0 = (self.0 & !(0x01 << 2usize)) | (((val as u8) & 0x01) << 2usize);
+    }
 }
 impl Default for AuxMod {
     fn default() -> AuxMod {
@@ -3213,22 +3222,24 @@ impl From<RxConf1Lp> for u8 {
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub struct TxDriverDRes(pub u8);
 impl TxDriverDRes {
-    pub const _1_00: Self = Self(0);
-    pub const _1_19: Self = Self(0x01);
-    pub const _1_40: Self = Self(0x02);
-    pub const _1_61: Self = Self(0x03);
-    pub const _1_79: Self = Self(0x04);
-    pub const _2_02: Self = Self(0x05);
-    pub const _2_49: Self = Self(0x06);
-    pub const _2_94: Self = Self(0x07);
-    pub const _3_41: Self = Self(0x08);
-    pub const _4_06: Self = Self(0x09);
-    pub const _5_95: Self = Self(0x0a);
-    pub const _8_26: Self = Self(0x0b);
-    pub const _17_10: Self = Self(0x0c);
-    pub const _36_60: Self = Self(0x0d);
-    pub const _51_20: Self = Self(0x0e);
-    pub const _HIGH_Z: Self = Self(0x0f);
+    // D_res values differ between st25r3916 and st25r3916b.
+    // Refer to their datasheets for matching the register value to d_res value
+    pub const _0: Self = Self(0);
+    pub const _1: Self = Self(0x01);
+    pub const _2: Self = Self(0x02);
+    pub const _3: Self = Self(0x03);
+    pub const _4: Self = Self(0x04);
+    pub const _5: Self = Self(0x05);
+    pub const _6: Self = Self(0x06);
+    pub const _7: Self = Self(0x07);
+    pub const _8: Self = Self(0x08);
+    pub const _9: Self = Self(0x09);
+    pub const _10: Self = Self(0x0a);
+    pub const _11: Self = Self(0x0b);
+    pub const _12: Self = Self(0x0c);
+    pub const _13: Self = Self(0x0d);
+    pub const _14: Self = Self(0x0e);
+    pub const _15: Self = Self(0x0f);
 }
 impl From<u8> for TxDriverDRes {
     fn from(val: u8) -> Self {
@@ -3245,22 +3256,24 @@ impl From<TxDriverDRes> for u8 {
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub struct TxDriverAmMod(pub u8);
 impl TxDriverAmMod {
-    pub const _5PERCENT: Self = Self(0);
-    pub const _6PERCENT: Self = Self(0x01);
-    pub const _7PERCENT: Self = Self(0x02);
-    pub const _8PERCENT: Self = Self(0x03);
-    pub const _9PERCENT: Self = Self(0x04);
-    pub const _10PERCENT: Self = Self(0x05);
-    pub const _11PERCENT: Self = Self(0x06);
-    pub const _12PERCENT: Self = Self(0x07);
-    pub const _13PERCENT: Self = Self(0x08);
-    pub const _14PERCENT: Self = Self(0x09);
-    pub const _15PERCENT: Self = Self(0x0a);
-    pub const _17PERCENT: Self = Self(0x0b);
-    pub const _19PERCENT: Self = Self(0x0c);
-    pub const _22PERCENT: Self = Self(0x0d);
-    pub const _26PERCENT: Self = Self(0x0e);
-    pub const _40PERCENT: Self = Self(0x0f);
+    // AmMod modulation percentage values differ between st25r3916 and st25r3916b.
+    // Refer to their datasheets for matching register value to percentage
+    pub const _0: Self = Self(0);
+    pub const _1: Self = Self(0x01);
+    pub const _2: Self = Self(0x02);
+    pub const _3: Self = Self(0x03);
+    pub const _4: Self = Self(0x04);
+    pub const _5: Self = Self(0x05);
+    pub const _6: Self = Self(0x06);
+    pub const _7: Self = Self(0x07);
+    pub const _8: Self = Self(0x08);
+    pub const _9: Self = Self(0x09);
+    pub const _10: Self = Self(0x0a);
+    pub const _11: Self = Self(0x0b);
+    pub const _12: Self = Self(0x0c);
+    pub const _13: Self = Self(0x0d);
+    pub const _14: Self = Self(0x0e);
+    pub const _15: Self = Self(0x0f);
 }
 impl From<u8> for TxDriverAmMod {
     fn from(val: u8) -> Self {
