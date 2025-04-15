@@ -391,7 +391,7 @@ impl<I: Interface, IrqPin: InputPin + Wait> St25r39<I, IrqPin> {
         let res = self.regs().regulator_result().read()?.0;
         trace!("reg result = {}", res);
 
-        // Taken from ST lib p23, on B variant do RC calibration
+        // Taken from ST25r3916B doc p23, on B variant do RC calibration.
         self.cmd_wait(Command::CalibrateRC).await?;
 
         Ok(())
