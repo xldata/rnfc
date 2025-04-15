@@ -79,6 +79,8 @@ enum Command {
     TransparentMode = 0xDC,
     /// Calibrate the capacitive sensor
     CalibrateCSensor = 0xDD,
+    // Calibrate RC (B variant only?)
+    CalibrateRC = 0xEA,
     /// Measure capacitance
     MeasureCapacitance = 0xDE,
     /// Measure power supply voltage
@@ -396,6 +398,9 @@ impl<I: Interface, IrqPin: InputPin + Wait> St25r39<I, IrqPin> {
 
         let res = self.regs().regulator_result().read()?.0;
         trace!("reg result = {}", res);
+
+        // Taken from ST lib p23, on B variant do RC calibration
+        self.cmd_wait(Command::CalibrateRC).await?;
 
         Ok(())
     }
