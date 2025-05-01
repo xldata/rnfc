@@ -91,6 +91,7 @@ pub struct St25r3916AatTuneResult {
 // TO-DO: discuss if we need the option to call func with other tuning params and a different initial result, like C lib has
 // tune_antenna is the pub function to call from other places in the code, it's structured like the ST RFAL C lib including how it does its internal function calls
 
+#[derive(Debug)]
 pub enum AntennaTuningError {
     NoChange,
     InvalidDirection,
