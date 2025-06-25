@@ -311,27 +311,32 @@ impl<I: Interface, IrqPin: InputPin + Wait> St25r39<I, IrqPin> {
             if attempt == 50 {
                 return Err(self::Error::Timeout);
             }
-            Timer::after(Duration::from_millis(20)).await;
+            Timer::after(Duration::from_millis(50)).await;
         }
     }
 
     async fn init(&mut self) -> Result<(), Error<I::Error>> {
+        debug!("rnfc init start");
         self.cmd(Command::SetDefault)?;
 
         self.regs().test_unk().write(|w| {
             w.set_dis_overheat_prot(true);
         })?;
+        debug!("rnfc overheat protection written");
 
         let id = self.regs().ic_identity().read()?;
         trace!("ic_type = {:02x} ic_rev = {:02x}", id.ic_type().0, id.ic_rev().0);
+        debug!("ic_type = {:02x} ic_rev = {:02x}", id.ic_type().0, id.ic_rev().0);
 
         // Enable OSC
         self.enable_osc().await?;
+        debug!("enabled osc done");
 
         // Measure vdd
         trace!("measuring vdd...");
         let vdd_mv = self.measure_vdd().await?;
         trace!("measure vdd result = {}mv", vdd_mv);
+        debug!("measure vdd result = {}mv", vdd_mv);
 
         let sup3v = vdd_mv < 3600;
         if sup3v {
@@ -343,12 +348,14 @@ impl<I: Interface, IrqPin: InputPin + Wait> St25r39<I, IrqPin> {
         self.regs().io_conf2().write(|w| {
             w.set_sup_3v(sup3v);
         })?;
+        debug!("set sup 3v done");
 
         // Disable MCU_CLK
         self.regs().io_conf1().write(|w| {
             w.set_out_cl(regs::IoConf1OutCl::DISABLED);
             w.set_lf_clk_off(true);
         })?;
+        debug!("io_conf1 write done");
 
         // Enable minimum non-overlap
         //self.regs().res_am_mod().write(|w| w.set_fa3_f(true))?;
@@ -379,20 +386,25 @@ impl<I: Interface, IrqPin: InputPin + Wait> St25r39<I, IrqPin> {
         self.regs().op_control().modify(|w| {
             w.set_en_fd(regs::OpControlEnFd::AUTO_EFD);
         })?;
+        debug!("op_control set en fd done");
 
         // Adjust regulators
 
         // Before sending the adjust regulator command it is required to toggle the bit reg_s by setting it first to 1 and then reset it to 0.
         self.regs().regulator_control().write(|w| w.set_reg_s(true))?;
         self.regs().regulator_control().write(|w| w.set_reg_s(false))?;
+        debug!("reg registers written");
 
         self.cmd_wait(Command::AdjustRegulators).await?;
+        debug!("adjustreg command sent");
 
         let res = self.regs().regulator_result().read()?.0;
         trace!("reg result = {}", res);
+        debug!("reg result = {}", res);
 
         // Taken from ST25r3916B doc p23, on B variant do RC calibration.
-        self.cmd_wait(Command::CalibrateRC).await?;
+        //self.cmd_wait(Command::CalibrateRC).await?;
+        debug!("calibrateRC command sent");
 
         Ok(())
     }
@@ -490,6 +502,8 @@ impl<I: Interface, IrqPin: InputPin + Wait> St25r39<I, IrqPin> {
                 }
                 WakeupReference::Automatic => {
                     let val = self.measure_amplitude().await?;
+                    debug!("Amplitude measurement in automatic wakeup config: {}", val);
+                    Timer::after(Duration::from_millis(200)).await;
                     self.regs().amplitude_measure_ref().write_value(val)?;
                 }
                 WakeupReference::AutoAverage {
