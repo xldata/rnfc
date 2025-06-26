@@ -289,9 +289,31 @@ impl<I: Interface, IrqPin: InputPin + Wait> St25r39<I, IrqPin> {
     }
 
     async fn cmd_wait(&mut self, cmd: Command) -> Result<(), Error<I::Error>> {
-        self.irq_clear()?;
-        self.cmd(cmd)?;
-        self.irq_wait(Interrupt::Dct).await
+        match self.irq_clear() {
+            Ok(_) => {},
+            Err(e) => {
+                if cmd == Command::CalibrateRC {
+                    debug!{"Irq clear failed in cmd_wait for CalibrateRC"}
+                }
+            }
+        }
+        match self.cmd(cmd) {
+            Ok(_) => {},
+            Err(e) => {
+                if cmd == Command::CalibrateRC {
+                    debug!{"Actual command failed in cmd_wait for CalibrateRC"}
+                }
+            }
+        }
+        match self.irq_wait(Interrupt::Dct).await {
+            Ok(_) => {},
+            Err(e) => {
+                if cmd == Command::CalibrateRC {
+                    debug!{"Irq wait failed in cmd_wait for CalibrateRC"}
+                }
+            }
+        }
+        Ok(())
     }
 
     async fn enable_osc(&mut self) -> Result<(), Error<I::Error>> {
@@ -331,6 +353,13 @@ impl<I: Interface, IrqPin: InputPin + Wait> St25r39<I, IrqPin> {
         // Enable OSC
         self.enable_osc().await?;
         debug!("enabled osc done");
+
+        // Taken from ST25r3916B doc p23, on B variant do RC calibration.
+        match self.cmd_wait(Command::CalibrateRC).await {
+            Ok(_) => {}
+            Err(e) => {debug!("Some kind of error in calibrateRC");}
+        }
+        debug!("calibrateRC command sent");
 
         // Measure vdd
         trace!("measuring vdd...");
@@ -401,10 +430,6 @@ impl<I: Interface, IrqPin: InputPin + Wait> St25r39<I, IrqPin> {
         let res = self.regs().regulator_result().read()?.0;
         trace!("reg result = {}", res);
         debug!("reg result = {}", res);
-
-        // Taken from ST25r3916B doc p23, on B variant do RC calibration.
-        //self.cmd_wait(Command::CalibrateRC).await?;
-        debug!("calibrateRC command sent");
 
         Ok(())
     }
@@ -502,8 +527,7 @@ impl<I: Interface, IrqPin: InputPin + Wait> St25r39<I, IrqPin> {
                 }
                 WakeupReference::Automatic => {
                     let val = self.measure_amplitude().await?;
-                    debug!("Amplitude measurement in automatic wakeup config: {}", val);
-                    Timer::after(Duration::from_millis(200)).await;
+                    debug!("Amplitude measurement for automatic wakeup config in enable_wakeup_mode: {}", val);
                     self.regs().amplitude_measure_ref().write_value(val)?;
                 }
                 WakeupReference::AutoAverage {
@@ -586,6 +610,9 @@ impl<I: Interface, IrqPin: InputPin + Wait> St25r39<I, IrqPin> {
         self.regs().op_control().write(|w| w.set_wu(true))?;
         self.irq_set_mask(!irqs)?;
 
+        let val = self.measure_amplitude().await?;
+        debug!("Amplitude measurement in RNFC enable wakeup mode {}", val);
+
         Ok(())
     }
 
@@ -593,8 +620,14 @@ impl<I: Interface, IrqPin: InputPin + Wait> St25r39<I, IrqPin> {
     /// The IRQ pin will go high on wakeup.
     pub async fn wait_for_card(&mut self, config: WakeupConfig) -> Result<(), Error<I::Error>> {
         if let Ok(()) = self.enable_wakeup_mode(config).await {
+            let val = self.measure_amplitude().await?;
+            debug!("Amplitude measurement in RNFC wait_for_card: {}", val);
             debug!("Entered wakeup mode, waiting for pin IRQ");
+            debug!("RNFC Is IRQ high: {:?}", self.irq.is_high());
             self.irq.wait_for_high().await.unwrap();
+            debug!("RNFC Is IRQ high: {:?}", self.irq.is_high());
+            let val = self.measure_amplitude().await?;
+            debug!("Amplitude measurement in RNFC wait_for_card: {}", val);
             debug!("got pin IRQ!");
         }
         Ok(())
@@ -805,6 +838,7 @@ impl<I: Interface, IrqPin: InputPin + Wait> St25r39<I, IrqPin> {
         self.irq_update()?;
         while !self.irq(irq) {
             if Instant::now() > deadline {
+                debug!("RNFC IRQ wait timeout error");
                 return Err(Error::Timeout);
             }
             yield_now().await;
