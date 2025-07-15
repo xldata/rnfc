@@ -13,7 +13,7 @@ pub mod regs;
 
 pub use aat::AatConfig;
 use embassy_futures::yield_now;
-use embassy_time::{Duration, Instant, Timer};
+use embassy_time::{Delay, Duration, Instant, Timer};
 use embedded_hal::digital::InputPin;
 use embedded_hal_async::digital::Wait;
 pub use interface::{I2cInterface, Interface, SpiInterface};
@@ -805,6 +805,8 @@ impl<I: Interface, IrqPin: InputPin + Wait> St25r39<I, IrqPin> {
             }
 
             self.irq_update()?;
+            use embedded_hal::delay::DelayNs; // So WDT doesnt trigger // FIXME
+            embassy_time::Delay.delay_ms(10);
         }
 
         self.regs().op_control().modify(|w| {

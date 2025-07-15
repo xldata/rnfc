@@ -194,6 +194,9 @@ impl<'d, I: Interface + 'd, IrqPin: InputPin + Wait + 'd> ll::Reader for Iso1444
             return Err(Error::FifoOverflow);
         }
         if stat.fifo_unf() {
+            let mut buffy = [0u8;255];
+            let fifo_readback = this.iface.read_fifo(&mut buffy);
+            debug!("Standard frame fifo readback: {:?}", buffy);
             return Err(Error::FifoUnderflow);
         }
         if stat.np_lb() {
