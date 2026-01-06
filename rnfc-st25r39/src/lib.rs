@@ -796,6 +796,8 @@ impl<I: Interface, IrqPin: InputPin + Wait> St25r39<I, IrqPin> {
         self.irq_clear()?; // clear
         self.cmd(Command::InitialRfCollision)?;
 
+        let deadline = Instant::now() + DEFAULT_TIMEOUT;
+
         loop {
             if self.irq(Interrupt::Cac) {
                 return Err(FieldOnError::FieldCollision);
@@ -805,8 +807,13 @@ impl<I: Interface, IrqPin: InputPin + Wait> St25r39<I, IrqPin> {
             }
 
             self.irq_update()?;
-            use embedded_hal::delay::DelayNs; // So WDT doesnt trigger // FIXME
-            embassy_time::Delay.delay_ms(10);
+
+            if Instant::now() > deadline {
+                return Err(FieldOnError::Timeout);
+            }
+
+            use embedded_hal::delay::DelayNs;
+            embassy_time::Delay.delay_ms(5); // So WDT doesnt trigger
         }
 
         self.regs().op_control().modify(|w| {
