@@ -289,30 +289,9 @@ impl<I: Interface, IrqPin: InputPin + Wait> St25r39<I, IrqPin> {
     }
 
     async fn cmd_wait(&mut self, cmd: Command) -> Result<(), Error<I::Error>> {
-        match self.irq_clear() {
-            Ok(_) => {},
-            Err(e) => {
-                if cmd == Command::CalibrateRC {
-                    debug!{"Irq clear failed in cmd_wait for CalibrateRC"}
-                }
-            }
-        }
-        match self.cmd(cmd) {
-            Ok(_) => {},
-            Err(e) => {
-                if cmd == Command::CalibrateRC {
-                    debug!{"Actual command failed in cmd_wait for CalibrateRC"}
-                }
-            }
-        }
-        match self.irq_wait(Interrupt::Dct).await {
-            Ok(_) => {},
-            Err(e) => {
-                if cmd == Command::CalibrateRC {
-                    debug!{"Irq wait failed in cmd_wait for CalibrateRC"}
-                }
-            }
-        }
+        self.irq_clear()?;
+        self.cmd(cmd)?;
+        self.irq_wait(Interrupt::Dct).await?;
         Ok(())
     }
 
@@ -321,15 +300,14 @@ impl<I: Interface, IrqPin: InputPin + Wait> St25r39<I, IrqPin> {
 
         let mut attempt = 0;
         loop {
-            attempt += 1;
             match self.regs().aux_display().read() {
                 Ok(val) if val.osc_ok() => {return Ok(());},
-                Ok(val) if !val.osc_ok() => {debug!("OSC not 1 yet.")}
-                Err(e) => {
-                    debug!("Couldn't read aux display");
-                },
+                Ok(val) if !val.osc_ok() => {}
+                Err(e) => return Err(e),
                 _=>{}
             };
+            attempt += 1;
+
             if attempt == 50 {
                 return Err(self::Error::Timeout);
             }
@@ -338,34 +316,27 @@ impl<I: Interface, IrqPin: InputPin + Wait> St25r39<I, IrqPin> {
     }
 
     async fn init(&mut self) -> Result<(), Error<I::Error>> {
-        debug!("rnfc init start");
         self.cmd(Command::SetDefault)?;
 
         self.regs().test_unk().write(|w| {
             w.set_dis_overheat_prot(true);
         })?;
-        debug!("rnfc overheat protection written");
 
         let id = self.regs().ic_identity().read()?;
         trace!("ic_type = {:02x} ic_rev = {:02x}", id.ic_type().0, id.ic_rev().0);
-        debug!("ic_type = {:02x} ic_rev = {:02x}", id.ic_type().0, id.ic_rev().0);
 
         // Enable OSC
         self.enable_osc().await?;
-        debug!("enabled osc done");
 
         // Taken from ST25r3916B doc p23, on B variant do RC calibration.
         match self.cmd_wait(Command::CalibrateRC).await {
             Ok(_) => {}
             Err(e) => {debug!("Some kind of error in calibrateRC");}
         }
-        debug!("calibrateRC command sent");
 
         // Measure vdd
         trace!("measuring vdd...");
         let vdd_mv = self.measure_vdd().await?;
-        trace!("measure vdd result = {}mv", vdd_mv);
-        debug!("measure vdd result = {}mv", vdd_mv);
 
         let sup3v = vdd_mv < 3600;
         if sup3v {
@@ -377,14 +348,12 @@ impl<I: Interface, IrqPin: InputPin + Wait> St25r39<I, IrqPin> {
         self.regs().io_conf2().write(|w| {
             w.set_sup_3v(sup3v);
         })?;
-        debug!("set sup 3v done");
 
         // Disable MCU_CLK
         self.regs().io_conf1().write(|w| {
             w.set_out_cl(regs::IoConf1OutCl::DISABLED);
             w.set_lf_clk_off(true);
         })?;
-        debug!("io_conf1 write done");
 
         // Enable minimum non-overlap
         //self.regs().res_am_mod().write(|w| w.set_fa3_f(true))?;
@@ -415,21 +384,17 @@ impl<I: Interface, IrqPin: InputPin + Wait> St25r39<I, IrqPin> {
         self.regs().op_control().modify(|w| {
             w.set_en_fd(regs::OpControlEnFd::AUTO_EFD);
         })?;
-        debug!("op_control set en fd done");
 
         // Adjust regulators
 
         // Before sending the adjust regulator command it is required to toggle the bit reg_s by setting it first to 1 and then reset it to 0.
         self.regs().regulator_control().write(|w| w.set_reg_s(true))?;
         self.regs().regulator_control().write(|w| w.set_reg_s(false))?;
-        debug!("reg registers written");
 
         self.cmd_wait(Command::AdjustRegulators).await?;
-        debug!("adjustreg command sent");
 
         let res = self.regs().regulator_result().read()?.0;
         trace!("reg result = {}", res);
-        debug!("reg result = {}", res);
 
         Ok(())
     }
@@ -527,7 +492,6 @@ impl<I: Interface, IrqPin: InputPin + Wait> St25r39<I, IrqPin> {
                 }
                 WakeupReference::Automatic => {
                     let val = self.measure_amplitude().await?;
-                    debug!("Amplitude measurement for automatic wakeup config in enable_wakeup_mode: {}", val);
                     self.regs().amplitude_measure_ref().write_value(val)?;
                 }
                 WakeupReference::AutoAverage {
@@ -609,10 +573,6 @@ impl<I: Interface, IrqPin: InputPin + Wait> St25r39<I, IrqPin> {
         self.regs().wup_timer_control().write_value(wtc)?;
         self.regs().op_control().write(|w| w.set_wu(true))?;
         self.irq_set_mask(!irqs)?;
-
-        let val = self.measure_amplitude().await?;
-        debug!("Amplitude measurement in RNFC enable wakeup mode {}", val);
-
         Ok(())
     }
 
@@ -620,131 +580,11 @@ impl<I: Interface, IrqPin: InputPin + Wait> St25r39<I, IrqPin> {
     /// The IRQ pin will go high on wakeup.
     pub async fn wait_for_card(&mut self, config: WakeupConfig) -> Result<(), Error<I::Error>> {
         if let Ok(()) = self.enable_wakeup_mode(config).await {
-            let val = self.measure_amplitude().await?;
-            debug!("Amplitude measurement in RNFC wait_for_card: {}", val);
             debug!("Entered wakeup mode, waiting for pin IRQ");
-            debug!("RNFC Is IRQ high: {:?}", self.irq.is_high());
             self.irq.wait_for_high().await.unwrap();
-            debug!("RNFC Is IRQ high: {:?}", self.irq.is_high());
-            let val = self.measure_amplitude().await?;
-            debug!("Amplitude measurement in RNFC wait_for_card: {}", val);
             debug!("got pin IRQ!");
         }
         Ok(())
-        /*self.mode_on().await?;
-
-         self.mode = Mode::Wakeup;
-         debug!("Entering wakeup mode");
-
-         self.cmd(Command::Stop)?;
-         self.regs().op_control().write(|_| {})?;
-         self.regs().mode().write(|w| w.set_om(regs::ModeOm::INI_ISO14443A))?;
-
-         let mut wtc = regs::WupTimerControl(0);
-         let mut irqs = 0;
-
-        // Increase resistance to reduce field amplitude (was 255, too high for delta detection). This gets ampl measurement to 116-ish in current prototype's setup
-         self.regs().tx_driver().modify(|w| w.set_d_res(0xC))?;
-
-         wtc.set_wur(config.period as u8 & 0x10 == 0);
-         wtc.set_wut(config.period as u8 & 0x0F);
-
-         if let Some(m) = config.inductive_amplitude {
-             let mut conf = regs::AmplitudeMeasureConf(0);
-             conf.set_am_d(m.delta);
-             match m.reference {
-                 WakeupReference::Manual(val) => {
-                     self.regs().amplitude_measure_ref().write_value(val)?;
-                 }
-                 WakeupReference::Automatic => {
-                     let val = self.measure_amplitude().await?;
-                     self.regs().amplitude_measure_ref().write_value(val)?;
-                 }
-                 WakeupReference::AutoAverage {
-                     include_irq_measurement,
-                     weight,
-                 } => {
-                     let val = self.measure_amplitude().await?;
-                     self.regs().amplitude_measure_ref().write_value(val)?;
-                     conf.set_am_ae(true);
-                     conf.set_am_aam(include_irq_measurement);
-                     conf.set_am_aew(weight);
-                 }
-             }
-             self.regs().amplitude_measure_conf().write_value(conf)?;
-             wtc.set_wam(true);
-             irqs |= 1 << Interrupt::Wam as u32;
-         }
-         if let Some(m) = config.inductive_phase {
-             let mut conf = regs::PhaseMeasureConf(0);
-             conf.set_pm_d(m.delta);
-             match m.reference {
-                 WakeupReference::Manual(val) => {
-                     self.regs().phase_measure_ref().write_value(val)?;
-                 }
-                 WakeupReference::Automatic => {
-                     let val = self.measure_phase().await?;
-                     self.regs().phase_measure_ref().write_value(val)?;
-                 }
-                 WakeupReference::AutoAverage {
-                     include_irq_measurement,
-                     weight,
-                 } => {
-                     let val = self.measure_phase().await?;
-                     self.regs().phase_measure_ref().write_value(val)?;
-                     conf.set_pm_ae(true);
-                     conf.set_pm_aam(include_irq_measurement);
-                     conf.set_pm_aew(weight);
-                 }
-             }
-             self.regs().phase_measure_conf().write_value(conf)?;
-             wtc.set_wph(true);
-             irqs |= 1 << Interrupt::Wph as u32;
-         }
-         if let Some(m) = config.capacitive {
-             debug!("capacitance calibrating...");
-             let val = self.calibrate_capacitance().await?;
-             info!("capacitance calibrated: {}", val);
-
-             let mut conf = regs::CapacitanceMeasureConf(0);
-             conf.set_cm_d(m.delta);
-             match m.reference {
-                 WakeupReference::Manual(val) => {
-                     self.regs().capacitance_measure_ref().write_value(val)?;
-                 }
-                 WakeupReference::Automatic => {
-                     let val = self.measure_capacitance().await?;
-                     info!("Measured: {}", val);
-                     self.regs().capacitance_measure_ref().write_value(val)?;
-                 }
-                 WakeupReference::AutoAverage {
-                     include_irq_measurement,
-                     weight,
-                 } => {
-                     let val = self.measure_capacitance().await?;
-                     info!("Measured: {}", val);
-                     self.regs().capacitance_measure_ref().write_value(val)?;
-                     conf.set_cm_ae(true);
-                     conf.set_cm_aam(include_irq_measurement);
-                     conf.set_cm_aew(weight);
-                 }
-             }
-             self.regs().capacitance_measure_conf().write_value(conf)?;
-             wtc.set_wcap(true);
-             irqs |= 1 << Interrupt::Wcap as u32;
-         }
-
-         self.irq_clear()?;
-
-         self.regs().wup_timer_control().write_value(wtc)?;
-         self.regs().op_control().write(|w| w.set_wu(true))?;
-         self.irq_set_mask(!irqs)?;
-
-        debug!("Entered wakeup mode, waiting for pin IRQ");
-        self.irq.wait_for_high().await.unwrap();
-        debug!("got pin IRQ!");
-
-        Ok(())*/
     }
 
     async fn field_on(&mut self) -> Result<(), FieldOnError<I::Error>> {
@@ -847,7 +687,6 @@ impl<I: Interface, IrqPin: InputPin + Wait> St25r39<I, IrqPin> {
         self.irq_update()?;
         while !self.irq(irq) {
             if Instant::now() > deadline {
-                debug!("RNFC IRQ wait timeout error");
                 return Err(Error::Timeout);
             }
             yield_now().await;
